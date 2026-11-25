@@ -48,9 +48,9 @@ All rule IDs follow the standard: `AI-SPM-<SERVICE>-<NUMBER>`
   - Enable S3 Bucket Versioning and consider enabling S3 Object Lock (WORM) for training data provenance.
 
 ### `AI-SPM-S3-004`: Insecure Model Checkpoint Serialization (Pickle vs SafeTensors)
-* **Severity:** `HIGH`
-* **Threat Vector:** Remote Code Execution via Insecure Model Deserialization (MITRE ATLAS: `AML.T0010`, `AML.T0020` | CVE-2024-34340)
-* **OWASP LLM:** `LLM03:2025` (Supply Chain Vulnerabilities)
+* **Severity:** `MEDIUM` (Heuristic)
+* **Threat Vector:** Remote Code Execution via Insecure Model Deserialization (MITRE ATLAS: `AML.T0010`)
+* **OWASP LLM:** `LLM04:2026` (Model Supply Chain Vulnerabilities)
 * **Target:** S3 buckets storing AI model weights.
 * **Detection Logic:**
   - Sample object keys in the bucket for legacy PyTorch/pickle checkpoint extensions (`.pt`, `.pth`, `.bin`, `.pkl`).
@@ -229,7 +229,7 @@ All rule IDs follow the standard: `AI-SPM-<SERVICE>-<NUMBER>`
   - Inspect attached inline and managed policies for wildcard actions (`Action: "*"`, `Action: "s3:*"`, `Action: "dynamodb:*"`) paired with wildcard resources (`Resource: "*"`).
   - Flag as `FAIL` if broad administrative write or data exfiltration privileges exist on AI execution roles.
 * **Remediation:**
-  - Scope IAM policies down to minimum required actions and specific ARNs according to the [AWS Least-Privilege IAM Policy](file:///c:/Pro/PROJECT/AI-SPM/doc/aws-iam-permissions.md).
+  - Scope IAM policies down to minimum required actions and specific target ARNs (see AWS IAM Least-Privilege documentation and `docs/aws-iam-permissions.md`).
 
 ---
 
@@ -240,7 +240,7 @@ All rule IDs follow the standard: `AI-SPM-<SERVICE>-<NUMBER>`
 | `AI-SPM-S3-001` | S3 | **CRITICAL** | `AML.T0044` | `LLM02:2025` | CIS AWS 2.1.1 |
 | `AI-SPM-S3-002` | S3 | **CRITICAL** | `AML.T0020`, `AML.T0044` | `LLM02`, `LLM03` | CIS AWS 2.1.5 |
 | `AI-SPM-S3-003` | S3 | **MEDIUM** | `AML.T0020` | `LLM03:2025` | AWS Well-Architected |
-| `AI-SPM-S3-004` | S3 | **HIGH** | `AML.T0010`, `AML.T0020` | `LLM03:2025` | CVE-2024-34340 |
+| `AI-SPM-S3-004` | S3 | **MEDIUM** | `AML.T0010` | `LLM04:2026` | SafeTensors / PickleScan |
 | `AI-SPM-SAGEMAKER-001` | SageMaker | **CRITICAL** | `AML.T0043`, `AML.T0044` | `LLM02:2025` | `SageMaker.1` |
 | `AI-SPM-SAGEMAKER-002` | SageMaker | **HIGH** | Lateral Movement | Infrastructure | `SageMaker.2` |
 | `AI-SPM-SAGEMAKER-003` | SageMaker | **HIGH** | Host Compromise | Least Privilege | `SageMaker.3` |

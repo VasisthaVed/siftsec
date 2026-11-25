@@ -72,7 +72,7 @@ To achieve breakout adoption alongside Prowler (10k+ stars), Trivy (24k+ stars),
 | # | Threat Domain | Research Paper / Benchmark | Key Finding |
 | :--- | :--- | :--- | :--- |
 | **R1** | **Vector Inversion** | **Vec2Text:** *"Text Embeddings Reveal (Almost) As Much As Text"* (Morris et al., Cornell, 2023) | Dense embeddings stored in vector databases can be inverted into original plaintext with >92% precision via iterative multi-step correction. Vector DBs must be treated as sensitive plaintext datastores. |
-| **R2** | **Model Supply Chain** | **Insecure Deserialization in PyTorch** (CVE-2024-34340, HF CVE-2024-57845, LeRobot CVE-2024-25874) | Loading unverified `.pt`/`.bin` files via `torch.load()` executes arbitrary Python bytecode via `__reduce__`. Mitigated by SafeTensors format or `weights_only=True`. |
+| **R2** | **Model Supply Chain** | **Insecure Deserialization in PyTorch** (`pickle.__reduce__` RCE, Hugging Face PickleScan, SafeTensors) | Loading unverified `.pt`/`.bin` files via `torch.load()` executes arbitrary Python bytecode via `__reduce__`. Mitigated by SafeTensors format or `weights_only=True`. |
 | **R3** | **Confused Deputy** | *"Capability Gates Are Not Authorization: Confused-Deputy Failures in LLM Agent Frameworks"* (arXiv, 2024) | LLM agents with tool access lack deterministic value authorization gates. Indirect prompt injections hijack agent credentials to execute destructive commands. Model-level fixes (RLHF, system prompts) are provably insufficient. |
 | **R4** | **RAG Poisoning** | **PoisonedRAG:** *"Knowledge Corruption Attacks to RAG"* (USENIX, 2024) | Attackers achieve >90% Attack Success Rate by injecting as few as 5 optimized malicious texts into million-document knowledge bases. GPT-4, PaLM 2 fail to distinguish poisoned context from authentic. |
 | **R5** | **RAG Single-Doc** | **AuthChain:** *"One Shot Dominance: Knowledge Poisoning Attack on RAG"* (arXiv, 2025) | A single Chain-of-Evidence (CoE) document crafted to mimic official policy can override multi-hop RAG pipelines without saturation flooding. |
@@ -219,7 +219,7 @@ To achieve breakout adoption alongside Prowler (10k+ stars), Trivy (24k+ stars),
 | **`AI-SPM-S3-001`** | S3 (AI Buckets) | `CRITICAL` | Model Weight Theft (`AML.T0044`, `LLM02:2025`) | Fail if weights use SSE-S3 instead of KMS CMK. |
 | **`AI-SPM-S3-002`** | S3 (AI Buckets) | `CRITICAL` | Public Model Exposure (`AML.T0044`) | Fail if Public Access Block not fully enabled. |
 | **`AI-SPM-S3-003`** | S3 (Training Data) | `MEDIUM` | Training Data Tampering (`AML.T0020`) | Fail if Object Versioning disabled. |
-| **`AI-SPM-S3-004`** | S3 (Model Weights) | `HIGH` | Pickle RCE (`AML.T0010`, `CVE-2024-34340`) | Fail if legacy `.pt`/`.bin`/`.pkl` without SafeTensors. |
+| **`AI-SPM-S3-004`** | S3 (Model Weights) | `MEDIUM` | Pickle RCE Heuristic (`AML.T0010`, `LLM04:2026`) | Heuristic: flag legacy `.pt`/`.bin`/`.pkl` without SafeTensors. |
 | **`AI-SPM-S3-005`** | S3 (Model Weights) | `MEDIUM` | Missing Provenance (Supply Chain) | Fail if model files lack cryptographic hash manifest or Sigstore/Cosign signatures. |
 | **`AI-SPM-ECR-001`** | ECR | `HIGH` | Container Poisoning (`AML.T0010`) | Fail if `scanOnPush: false`. |
 | **`AI-SPM-ECR-002`** | ECR | `MEDIUM` | Tag Tampering (`AML.T0010`) | Fail if `imageTagMutability: MUTABLE`. |
@@ -395,13 +395,13 @@ To achieve breakout adoption alongside Prowler (10k+ stars), Trivy (24k+ stars),
 
 ---
 
-## 8. Master Documentation Index (`doc/`)
+## 8. Master Documentation Index (`docs/`)
 
-All subsystem specifications and developer guides are maintained in the [`doc/`](file:///c:/Pro/PROJECT/AI-SPM/doc) directory:
+All subsystem specifications and developer guides are maintained in the [`docs/`](file:///c:/Pro/PROJECT/AI-SPM/doc) directory:
 
-1. **[System Architecture & Design](file:///c:/Pro/PROJECT/AI-SPM/doc/architecture.md):** Deep-dive component diagrams, collector abstractions, and resilience patterns.
-2. **[AI-SPM Security Rules Catalog](file:///c:/Pro/PROJECT/AI-SPM/doc/ai-spm-rules-catalog.md):** Technical detection logic and remediation commands for all rules.
-3. **[AI Threat Model & Risk Analysis](file:///c:/Pro/PROJECT/AI-SPM/doc/threat-model.md):** Adversary personas, attack surfaces, MITRE ATLAS, OWASP, and NIST mappings.
-4. **[AI Rules & Engineering Directives](file:///c:/Pro/PROJECT/AI-SPM/doc/ai-rules.md):** Developer standards, Boto3 resilience, pagination, and Pydantic v2 guidelines.
-5. **[AWS Least-Privilege IAM Policy](file:///c:/Pro/PROJECT/AI-SPM/doc/aws-iam-permissions.md):** Read-only IAM policy for target environment auditing.
-6. **[Product Requirements Document (PRD)](file:///c:/Pro/PROJECT/AI-SPM/doc/prd.md):** Personas, functional requirements, and performance SLAs.
+1. **[System Architecture & Design](file:///c:/Pro/PROJECT/AI-SPM/docs/architecture.md):** Deep-dive component diagrams, collector abstractions, and resilience patterns.
+2. **[AI-SPM Security Rules Catalog](file:///c:/Pro/PROJECT/AI-SPM/docs/ai-spm-rules-catalog.md):** Technical detection logic and remediation commands for all rules.
+3. **[AI Threat Model & Risk Analysis](file:///c:/Pro/PROJECT/AI-SPM/docs/threat-model.md):** Adversary personas, attack surfaces, MITRE ATLAS, OWASP, and NIST mappings.
+4. **[AI Rules & Engineering Directives](file:///c:/Pro/PROJECT/AI-SPM/docs/ai-rules.md):** Developer standards, Boto3 resilience, pagination, and Pydantic v2 guidelines.
+5. **[AWS Least-Privilege IAM Policy](file:///c:/Pro/PROJECT/AI-SPM/docs/aws-iam-permissions.md):** Read-only IAM policy for target environment auditing.
+6. **[Product Requirements Document (PRD)](file:///c:/Pro/PROJECT/AI-SPM/docs/prd.md):** Personas, functional requirements, and performance SLAs.

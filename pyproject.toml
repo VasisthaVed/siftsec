@@ -52,6 +52,7 @@ dev = [
 ]
 
 [project.scripts]
+tensorguard = "ai_spm.cli:app"
 ai-spm = "ai_spm.cli:app"
 
 [tool.ruff]

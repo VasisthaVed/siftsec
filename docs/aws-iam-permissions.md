@@ -127,7 +127,7 @@ The policy follows the principle of least privilege, requiring only `List`, `Des
 # 1. Create the policy
 aws iam create-policy \
   --policy-name AISPMReadOnlyPolicy \
-  --policy-document file://doc/ai-spm-readonly-policy.json
+  --policy-document file://docs/ai-spm-readonly-policy.json
 
 # 2. Attach to your CI/CD service role or auditor user
 aws iam attach-role-policy \
@@ -140,7 +140,7 @@ aws iam attach-role-policy \
 resource "aws_iam_policy" "ai_spm_readonly" {
   name        = "AISPMReadOnlyPolicy"
   description = "Minimal read-only permissions for AI-SPM Scanner"
-  policy      = file("${path.module}/doc/ai-spm-readonly-policy.json")
+  policy      = file("${path.module}/docs/ai-spm-readonly-policy.json")
 }
 
 resource "aws_iam_role_policy_attachment" "ai_spm_attach" {

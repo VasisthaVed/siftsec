@@ -64,7 +64,7 @@ Traditional Cloud Security Posture Management (CSPM) focuses on generic cloud pr
   - ECR/Artifact Registry repositories without image vulnerability scanning or tag immutability can have `latest` tags overwritten with poisoned inference code.
   - *Countermeasure:* Enforce `scanOnPush: true`, `imageTagMutability: IMMUTABLE`, and Cosign signature verification.
 
-* **Threat: Pickle Deserialization RCE (`AML.T0010` / CVE-2024-34340)**
+* **Threat: Pickle Deserialization RCE (`AML.T0010` / `LLM04:2026`)**
   - Legacy PyTorch checkpoint files (`.pt`, `.pth`, `.bin`, `.pkl`) execute arbitrary Python bytecode via `__reduce__` during `torch.load()`. A single malicious model file can spawn a reverse shell, install cryptominers, or exfiltrate credentials.
   - *Countermeasure:* Enforce SafeTensors format (`.safetensors`), `torch.load(..., weights_only=True)`, and PickleScan CI integration.
 

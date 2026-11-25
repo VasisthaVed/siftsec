@@ -1,0 +1,44 @@
+"""Structured stderr logger with automatic secret redaction."""
+
+import logging
+
+from rich.console import Console
+from rich.logging import RichHandler
+
+from ai_spm.utils.redact import redact
+
+
+class _RedactingFilter(logging.Filter):
+    """Ensure no matched secret values reach stderr logs or tracebacks."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = redact(record.msg)
+        if record.args:
+            if isinstance(record.args, tuple):
+                record.args = tuple(redact(a) if isinstance(a, str) else a for a in record.args)
+            elif isinstance(record.args, dict):
+                record.args = {
+                    k: redact(v) if isinstance(v, str) else v for k, v in record.args.items()
+                }
+        return True
+
+
+def configure_logging(*, verbose: bool = False, quiet: bool = False) -> logging.Logger:
+    """Configure root ai_spm logger to write redacted Rich output to stderr."""
+    level = logging.DEBUG if verbose else logging.ERROR if quiet else logging.WARNING
+    err_console = Console(stderr=True)
+    handler = RichHandler(
+        console=err_console,
+        show_time=False,
+        show_path=verbose,
+        rich_tracebacks=verbose,
+    )
+    handler.addFilter(_RedactingFilter())
+
+    logger = logging.getLogger("ai_spm")
+    logger.handlers.clear()
+    logger.addHandler(handler)
+    logger.setLevel(level)
+    logger.propagate = False
+    return logger

@@ -1,17 +1,26 @@
+import pytest
+from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from ai_spm.cli import app
+from ai_spm.collectors.base import BaseCollector
 from ai_spm.collectors.mock import MockCollector
 from ai_spm.config import AISPMConfig
+from ai_spm.engine.fingerprint import fingerprint
 from ai_spm.engine.models import CloudProvider, CloudResource, Finding, Severity, Status
 from ai_spm.engine.runner import ScanRunner
+from ai_spm.engine.scoring import exit_code, posture_score
 from ai_spm.reporters.console import ConsoleReporter
+from ai_spm.rules.base import BaseRule
 from ai_spm.rules.registry import registry
+from ai_spm.utils.redact import redact
 
 runner = CliRunner()
 
 
-def test_models_creation() -> None:
+def test_models_and_severity_ordering() -> None:
+    assert Severity.CRITICAL >= Severity.HIGH >= Severity.MEDIUM >= Severity.LOW
+
     res = CloudResource(
         arn="arn:aws:s3:::test-bucket",
         id="test-bucket",
@@ -34,6 +43,69 @@ def test_models_creation() -> None:
         remediation="Fix it",
     )
     assert finding.status == Status.FAILED
+    assert len(finding.fingerprint) == 32
+
+    with pytest.raises(ValidationError):
+        Finding(
+            rule_id="AI-SPM-S3-001",
+            rule_title="Test Rule",
+            service="s3",
+            resource_arn=res.arn,
+            resource_id=res.id,
+            status=Status.FAILED,
+            severity=Severity.HIGH,
+            message="Failed without remediation",
+            remediation="",
+        )
+
+
+def test_fingerprint_and_redaction() -> None:
+    fp1 = fingerprint("AI-SPM-S3-001", "arn:aws:s3:::b1", "scope-a")
+    fp2 = fingerprint("AI-SPM-S3-001", "arn:aws:s3:::b1", "scope-a")
+    fp3 = fingerprint("AI-SPM-S3-001", "arn:aws:s3:::b1", "scope-b")
+    assert fp1 == fp2
+    assert fp1 != fp3
+
+    raw = "Found key sk-proj-1234567890abcdefghij and AKIAIOSFODNN7EXAMPLE"
+    masked = redact(raw)
+    assert "1234567890" not in masked
+    assert "IOSFODNN7EXAMPLE" not in masked
+    assert "sk-p****" in masked
+    assert "AKIA****" in masked
+
+
+def test_runner_exception_barrier_and_gaps() -> None:
+    class _SingleResourceCollector(BaseCollector):
+        def collect(self) -> list[CloudResource]:
+            return [
+                CloudResource(
+                    arn="arn:aws:s3:::gap-bucket",
+                    id="gap-bucket",
+                    name="gap-bucket",
+                    service="s3",
+                    gaps={"encryption": "AccessDenied"},
+                )
+            ]
+
+    class _CrashingRule(BaseRule):
+        rule_id = "AI-SPM-TEST-999"
+        title = "Crashing Test Rule"
+        description = "Simulates an unexpected rule bug."
+        severity = Severity.LOW
+        service = "s3"
+
+        def evaluate(self, resource: CloudResource) -> Finding:
+            raise RuntimeError("boom")
+
+    registry.register(_CrashingRule())
+    try:
+        findings = ScanRunner(collector=_SingleResourceCollector(), services=["s3"]).run()
+        error_findings = [f for f in findings if f.rule_id == "AI-SPM-TEST-999"]
+        assert len(error_findings) == 1
+        assert error_findings[0].status is Status.ERROR
+        assert error_findings[0].error_code == "RuntimeError"
+    finally:
+        registry._rules.pop("AI-SPM-TEST-999", None)
 
 
 def test_mock_collector_and_runner() -> None:
@@ -45,14 +117,13 @@ def test_mock_collector_and_runner() -> None:
     findings = scan_runner.run()
     assert len(findings) > 0
 
-    # Ensure rule failures were correctly caught
     failed = [f for f in findings if f.status == Status.FAILED]
     assert len(failed) >= 3
 
 
 def test_rules_registry() -> None:
     rules = registry.get_rules()
-    assert len(rules) >= 7
+    assert len(rules) >= 8
 
     s3_rules = registry.get_rules(services=["s3"])
     assert len(s3_rules) >= 3
@@ -69,17 +140,20 @@ def test_cli_list_rules() -> None:
 
 def test_cli_scan_demo() -> None:
     result = runner.invoke(app, ["scan", "--demo", "--fail-on", "CRITICAL"])
-    # Demo has critical findings so it exits with 1
     assert result.exit_code == 1
     assert "AI Security Posture Score" in result.output
     assert "AI-SPM-S3-001" in result.output
 
 
-def test_dynamic_config_and_weighted_score(monkeypatch) -> None:
+def test_dynamic_config_and_weighted_score(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AI_SPM_APP_NAME", "Custom-AI-SPM")
     cfg = AISPMConfig()
     assert cfg.app_name == "Custom-AI-SPM"
     assert ".pt" in cfg.insecure_model_extensions
+
+    # Empty findings must return None (unscanned != 100)
+    assert posture_score([], cfg.severity_weights) is None
+    assert exit_code([], Severity.HIGH) == 0
 
     reporter = ConsoleReporter()
     findings = [
@@ -107,3 +181,4 @@ def test_dynamic_config_and_weighted_score(monkeypatch) -> None:
         ),
     ]
     assert reporter.calculate_score(findings) == 50
+    assert exit_code(findings, Severity.CRITICAL) == 1

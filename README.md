@@ -9,7 +9,7 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 [![MITRE ATLAS](https://img.shields.io/badge/MITRE-ATLAS-red.svg)](https://atlas.mitre.org/)
-[![OWASP LLM 2025](https://img.shields.io/badge/OWASP-LLM%20Top%2010%202025-orange.svg)](https://genai.owasp.org/)
+[![OWASP LLM 2026](https://img.shields.io/badge/OWASP-LLM%20Top%2010%202026-orange.svg)](https://genai.owasp.org/)
 [![NIST AI 600-1](https://img.shields.io/badge/NIST-AI%20600--1-purple.svg)](https://www.nist.gov/itl/ai-risk-management-framework)
 
 </div>
@@ -22,89 +22,67 @@ Traditional CSPM tools (Prowler, Trivy, ScoutSuite) inspect generic cloud primit
 
 | Attack Surface | Traditional CSPM | 🛡️ TensorGuard (`ai-spm`) |
 | :--- | :--- | :--- |
-| **Model Weights (`.pt`, `.pkl`)** | Sees a passive blob in S3 | Detects **Pickle RCE deserialization risks** (`AML.T0010`) and enforces **SafeTensors** |
-| **Vector Databases (RAG)** | Treats OpenSearch/Qdrant like SQL | Flags public vector endpoints exposed to **Embedding Inversion (`Vec2Text`)** |
-| **Autonomous Agents** | Checks generic IAM syntax | Audits **Bedrock Guardrails**, **excessive agency (`LLM06`)**, and wildcard agent roles |
-| **MCP Tool Runtimes** | Blind to Model Context Protocol | Scans **MCP tool manifests** for hidden prompt injection & rug-pull drift |
-| **Posture Scoring** | Binary pass/fail counts | **Severity-weighted CSPM posture score (0–100)** + native **SARIF v2.1.0** |
+| **Model Weights (`.pt`, `.pkl`)** | Sees a passive blob in S3 | Audits **Pickle RCE deserialization risks** (`AML.T0010`) and enforces **SafeTensors** |
+| **Vector Databases (RAG)** | Treats OpenSearch/Qdrant like SQL | Flags public vector endpoints exposed to **Embedding Inversion (`Vec2Text` / `LLM09:2026`)** |
+| **Autonomous Agents** | Checks generic IAM syntax | Audits **Bedrock Guardrails**, **Excessive Agency (`LLM03:2026`)**, and wildcard agent roles |
+| **MCP Tool Runtimes** | Blind to Model Context Protocol | Scans **MCP tool manifests** for hidden prompt injection & rug-pull drift (`ASI10`) |
+| **Unknown ≠ Pass** | Silently skips or fails on `AccessDenied` | Tracks **coverage gaps (`Status.ERROR`)** cleanly and never inflates scores (`None` if unscanned) |
 
 ---
 
-## ⚡ 10-Second Quickstart (Zero Credentials Required)
+## ⚡ Quickstart (Zero Credentials Required)
 
-Test TensorGuard immediately using the built-in `--demo` simulation mode:
+Run TensorGuard immediately in simulated `--demo` mode to inspect the engine, rules, and Rich reporting:
 
 ```bash
 git clone https://github.com/VasisthaVed/tensorguard.git
 cd tensorguard
 uv sync --extra dev
-uv run ai-spm scan --demo
+uv run tensorguard scan --demo
 ```
 
-Or list all dynamically discovered rules:
+List all dynamically discovered rules:
 
 ```bash
-uv run ai-spm list-rules
+uv run tensorguard list-rules
 ```
 
-### Sample Terminal Output
-
-```text
-┌───────────────────── 🛡️  AI-SPM Security Audit Report ──────────────────────┐
-│ AI Security Posture Score: 26/100  |  Passed: 3  |  Failed: 8  |  Total: 11 │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           Security Findings Summary
-┌────────┬──────────┬──────────────────────┬─────────────────┬────────────────┐
-│ Status │ Severity │ Rule ID              │ Resource        │ Threat Mapping │
-├────────┼──────────┼──────────────────────┼─────────────────┼────────────────┤
-│ FAILED │ CRITICAL │ AI-SPM-S3-001        │ corp-ai-model…  │ AML.T0044      │
-│ FAILED │ CRITICAL │ AI-SPM-S3-002        │ corp-ai-model…  │ AML.T0044      │
-│ FAILED │ HIGH     │ AI-SPM-S3-004        │ corp-ai-model…  │ AML.T0010      │
-│ PASSED │ CRITICAL │ AI-SPM-S3-001        │ corp-ai-safete… │ AML.T0044      │
-│ FAILED │ CRITICAL │ AI-SPM-SAGEMAKER-001 │ ml-research-dev │ AML.T0043      │
-│ FAILED │ CRITICAL │ AI-SPM-BEDROCK-003   │ FIN-REPORT-AGE… │ LLM01, LLM06   │
-│ FAILED │ CRITICAL │ AI-SPM-VECTOR-001    │ rag-vector-clu… │ AML.T0044      │
-│ FAILED │ HIGH     │ AI-SPM-IAM-001       │ BedrockExecAdm… │ LLM06:2025     │
-│ FAILED │ CRITICAL │ AI-SPM-MCP-001       │ untrusted-gith… │ AML.T0010      │
-└────────┴──────────┴──────────────────────┴─────────────────┴────────────────┘
-```
+> Both `tensorguard` and `ai-spm` CLI entry points are installed.
 
 ---
 
 ## 🏗️ 7-Tier Bottom-Up AI Defense Architecture
 
-TensorGuard is designed around a layered defense model covering the full AI stack:
-
 ```text
-[Tier 6] AI Supply Chain & Provenance   ──► AIBOM (CycloneDX / SPDX 3.0), Weight Signing
+[Tier 6] AI Supply Chain & Provenance   ──► AIBOM (CycloneDX 1.7 / SPDX 3.0), Weight Signing
 [Tier 5] MCP & Tool Runtimes            ──► Tool Poisoning, Manifest Hash-Pinning
 [Tier 4] Autonomous Agents & Guardrails ──► Bedrock Guardrails, Confused-Deputy Prevention
 [Tier 3] Inference Gateways & Shadow AI ──► Invocation Logging, Ollama/vLLM Port Discovery
 [Tier 2] Vector Databases & RAG         ──► VPC Isolation, FGAC, Vec2Text & PoisonedRAG Defense
 [Tier 1] Model Weights & Containers     ──► KMS CMK, SafeTensors vs Pickle, ECR Scan-on-Push
-[Tier 0] Infra, GPU Runtime & Secrets   ──► SageMaker DIA/RootAccess, K8s GPU & API Key Leaks
+[Tier 0] Infra, GPU Runtime & Secrets   ──► SageMaker DIA/RootAccess, K8s GPU & Secret Redaction
 ```
 
 ---
 
-## 📋 Implemented Rules
+## 📋 Active Rules (Demo / Foundation Set)
 
 | Rule ID | Service | Severity | Threat & Framework Mapping |
 | :--- | :--- | :--- | :--- |
-| `AI-SPM-S3-001` | S3 | `CRITICAL` | Model Weight Storage KMS CMK Encryption (`AML.T0044`, `LLM02:2025`) |
-| `AI-SPM-S3-002` | S3 | `CRITICAL` | Public Access Block on AI Model/Dataset Bucket (`AML.T0044`, `AML.T0020`) |
-| `AI-SPM-S3-004` | S3 | `HIGH` | Insecure Model Serialization: Pickle vs SafeTensors (`AML.T0010`, `LLM03:2025`) |
-| `AI-SPM-SAGEMAKER-001` | SageMaker | `CRITICAL` | Notebook Direct Internet Access Enabled (`AML.T0043`, `LLM02:2025`) |
-| `AI-SPM-BEDROCK-003` | Bedrock | `CRITICAL` | Bedrock Agent Missing Active Guardrail (`LLM01:2025`, `LLM06:2025`, `MG-3.1`) |
-| `AI-SPM-VECTOR-001` | OpenSearch | `CRITICAL` | Vector Database Publicly Exposed / Inversion Risk (`AML.T0044`, `LLM02:2025`) |
-| `AI-SPM-IAM-001` | IAM | `HIGH` | Excessive Agency: Wildcard Permissions on AI Roles (`AML.T0043`, `LLM06:2025`) |
-| `AI-SPM-MCP-001` | MCP | `CRITICAL` | MCP Tool Manifest Poisoning / Hidden Injections (`AML.T0010`, `LLM03:2025`) |
+| `AI-SPM-S3-001` | S3 | `MEDIUM` | Model Weight Storage Lacks KMS CMK Encryption (`AML.T0044`, `LLM02:2026`) |
+| `AI-SPM-S3-002` | S3 | `CRITICAL` | Public Access Allowed on AI Model/Dataset Bucket (`AML.T0044`, `LLM02:2026`, `LLM05:2026`) |
+| `AI-SPM-S3-004` | S3 | `MEDIUM` | Insecure Model Serialization Heuristic: Pickle vs SafeTensors (`AML.T0010`, `LLM04:2026`) |
+| `AI-SPM-SAGEMAKER-001` | SageMaker | `HIGH` | Notebook Direct Internet Access Enabled (`AML.T0044`, `LLM02:2026`) |
+| `AI-SPM-BEDROCK-003` | Bedrock | `HIGH` | Bedrock Agent Missing Active Guardrail (`LLM01:2026`, `LLM03:2026`, `MG-3.1`) |
+| `AI-SPM-VECTOR-001` | OpenSearch | `CRITICAL` | Vector Database Publicly Exposed / Inversion Risk (`AML.T0044`, `LLM02:2026`, `LLM09:2026`) |
+| `AI-SPM-IAM-001` | IAM | `HIGH` | Excessive Agency: Wildcard Permissions on AI Roles (`LLM03:2026`, `ASI05`) |
+| `AI-SPM-MCP-001` | MCP | `CRITICAL` | MCP Tool Manifest Poisoning / Hidden Injections (`AML.T0010`, `LLM04:2026`, `ASI10`) |
 
 ---
 
 ## ⚙️ Dynamic Configuration (Zero Hardcoding)
 
-All scoring weights, file extension heuristics, shadow AI ports, and fail thresholds are dynamically driven by `AISPMConfig` (`ai_spm/config.py`) and can be overridden via environment variables:
+All scoring weights, file extension heuristics, shadow AI ports, and fail thresholds are governed by `AISPMConfig` ([config.py](ai_spm/config.py)) and overridable via `AI_SPM_*` environment variables:
 
 ```bash
 export AI_SPM_DEFAULT_FAIL_ON=CRITICAL
@@ -115,13 +93,13 @@ Rules are auto-discovered at runtime via `pkgutil.iter_modules` and `importlib.m
 
 ---
 
-## 🔄 GitHub Code Scanning (SARIF) Integration
+## 🔄 GitHub Code Scanning (SARIF v2.1.0)
 
-Export OASIS SARIF v2.1.0 findings directly into GitHub's **Security → Code Scanning** tab:
+Export findings directly into GitHub's **Security → Code Scanning** tab:
 
 ```yaml
 - name: Run TensorGuard AI-SPM Scan
-  run: uv run ai-spm scan --demo --output results.sarif
+  run: uv run tensorguard scan --demo --output results.sarif
 
 - name: Upload SARIF to GitHub Security
   uses: github/codeql-action/upload-sarif@v3
@@ -131,11 +109,19 @@ Export OASIS SARIF v2.1.0 findings directly into GitHub's **Security → Code Sc
 
 ---
 
-## 📚 Documentation & Research
+## ⚠️ Current Status, Limitations & Non-Goals
 
-- [Master Architecture & 12-Phase Roadmap](Roadmap.md)
-- [AI Threat Model & Kill Chains](doc/threat-model.md)
-- [Security Rules Catalog](doc/ai-spm-rules-catalog.md)
-- [System Architecture & Design](doc/architecture.md)
-- [Architectural Decisions Log (ADRs)](doc/decisions.md)
-- [Engineering & Zero-Hardcoding Directives](doc/ai-rules.md)
+* **Current Milestone (Phase 0 Complete):** The core engine (`CloudResource`, `Finding`, `fingerprint`, `redact`, weighted `posture_score`, `BaseRule`, `ScanRunner` exception barrier, `ConsoleReporter`, `SARIFReporter`) and `--demo` simulator are live.
+* **In Progress (Phase 1 → 2):** Local static Pickle opcode scanning (`pickletools.genops`), local MCP config auditing, and live AWS Boto3 collectors (`S3`, `SageMaker`, `Bedrock`, `ECR`, `OpenSearch`, `IAM`, `EC2`) are queued next per [PLAYBOOK.md](docs/PLAYBOOK.md).
+* **Non-Goals:** TensorGuard is a **read-only posture & static supply-chain auditor**. It never executes untrusted model files (`pickle.loads` / `torch.load`), never spawns untrusted MCP servers, and never mutates cloud infrastructure without explicit opt-in.
+
+---
+
+## 📚 Documentation & Build Playbook
+
+- [Build Playbook (Phases 0–9)](docs/PLAYBOOK.md) — Single source of truth for implementation
+- [Engineering Decisions & Standards](docs/decisions.md) — ADRs 001–008 & coding guidelines
+- [AI Threat Model & Kill Chains](docs/threat-model.md) — Attack surfaces & adversary personas
+- [Security Rules Catalog](docs/ai-spm-rules-catalog.md) — Full 18-rule specification
+- [Engineering & Zero-Hardcoding Rules](docs/ai-rules.md) — Contributor & AI coding directives
+- [Master Vision & Roadmap](Roadmap.md) — 7-Tier architecture & research references
