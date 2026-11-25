@@ -14,6 +14,8 @@ class ScanContext(BaseModel):
 
     account_id: str = "local"
     partition: str = "aws"
+    providers: list[str] = Field(default_factory=list)
+    gcp_project: str | None = None
     regions: list[str] = Field(default_factory=list)
     services: list[str] | None = None
     min_severity: Severity = Severity.LOW

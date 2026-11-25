@@ -15,6 +15,7 @@ from ai_spm import __version__
 from ai_spm.collectors.aws.client import AwsClientFactory, resolve_identity
 from ai_spm.collectors.aws.orchestrator import AwsOrchestrator
 from ai_spm.collectors.base import BaseCollector
+from ai_spm.collectors.gcp import GcpCollector
 from ai_spm.collectors.k8s import K8sCollector
 from ai_spm.collectors.local.mcp import LocalMcpCollector
 from ai_spm.collectors.local.models import LocalModelCollector
@@ -75,9 +76,11 @@ def _collect_target_resources(
     demo: bool,
     local: bool,
     aws: bool,
+    gcp: bool,
     k8s: bool,
     path: list[Path],
     include_hf_cache: bool,
+    gcp_project: str | None,
     kube_context: str | None,
     profile: str | None,
     ctx: ScanContext,
@@ -105,13 +108,21 @@ def _collect_target_resources(
         resources.extend(col_result.resources)
         coverage_gaps.extend(col_result.coverage_gaps)
 
+    if gcp:
+        gcp_res = GcpCollector(
+            project_id=gcp_project, regions=ctx.regions, cfg=settings
+        ).collect_with_gaps(ctx)
+        resources.extend(gcp_res.resources)
+        coverage_gaps.extend(gcp_res.coverage_gaps)
+
     if k8s:
         resources.extend(K8sCollector(kube_context=kube_context, cfg=settings).collect())
 
-    if not (local or aws or k8s):
+    if not (local or aws or gcp or k8s):
         if not demo:
             err_console.print(
-                "[yellow]No target specified (--local / --aws / --k8s). Running in --demo mode.[/]"
+                "[yellow]No target specified (--local / --aws / --gcp / --k8s). "
+                "Running in --demo mode.[/]"
             )
         resources.extend(MockCollector().collect())
 
@@ -125,6 +136,8 @@ def scan(
         False, "--local", "-l", help="Scan local model files and MCP configurations"
     ),
     aws: bool = typer.Option(False, "--aws", help="Scan live AWS environment via Boto3"),
+    gcp: bool = typer.Option(False, "--gcp", help="Scan Google Cloud (Vertex AI & GCS)"),
+    gcp_project: str | None = typer.Option(None, "--gcp-project", help="GCP project ID for --gcp"),
     k8s: bool = typer.Option(False, "--k8s", help="Scan Kubernetes GPU cluster (read-only)"),
     kube_context: str | None = typer.Option(
         None, "--kube-context", help="Kubernetes context name for --k8s"
@@ -176,15 +189,18 @@ def scan(
             fail_on=fail_on,
             ai_only=ai_only,
             profile=profile,
+            gcp_project=gcp_project,
         )
 
         resources, coverage_gaps = _collect_target_resources(
             demo=demo,
             local=local,
             aws=aws,
+            gcp=gcp,
             k8s=k8s,
             path=path,
             include_hf_cache=include_hf_cache,
+            gcp_project=gcp_project,
             kube_context=kube_context,
             profile=profile,
             ctx=ctx,
@@ -289,6 +305,8 @@ def baseline_create(
     demo: bool = typer.Option(False, "--demo", "-d", help="Create baseline from demo scan"),
     local: bool = typer.Option(False, "--local", "-l", help="Create baseline from local scan"),
     aws: bool = typer.Option(False, "--aws", help="Create baseline from AWS scan"),
+    gcp: bool = typer.Option(False, "--gcp", help="Create baseline from GCP scan"),
+    gcp_project: str | None = typer.Option(None, "--gcp-project", help="GCP project ID"),
     k8s: bool = typer.Option(False, "--k8s", help="Create baseline from Kubernetes GPU scan"),
     kube_context: str | None = typer.Option(None, "--kube-context", help="Kubernetes context"),
     path: list[Path] = typer.Option([Path(".")], "--path", "-p", help="Local path(s) to scan"),
@@ -308,14 +326,17 @@ def baseline_create(
         ctx = ScanContext(
             regions=[r.strip() for r in regions.split(",") if r.strip()],
             profile=profile,
+            gcp_project=gcp_project,
         )
         resources, _ = _collect_target_resources(
             demo=demo,
             local=local,
             aws=aws,
+            gcp=gcp,
             k8s=k8s,
             path=path,
             include_hf_cache=False,
+            gcp_project=gcp_project,
             kube_context=kube_context,
             profile=profile,
             ctx=ctx,

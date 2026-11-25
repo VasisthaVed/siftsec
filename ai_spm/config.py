@@ -160,6 +160,16 @@ class AISPMConfig(BaseSettings):
             ],
             "ecr": [r"\btorch\b", r"\bvllm\b", r"\btgi\b", r"\bsagemaker\b", r"\binference\b"],
             "opensearch": [r"\bvector\b", r"\brag\b", r"\bembedding\b"],
+            "gcp_gcs": [
+                r"\bai\b",
+                r"\bml\b",
+                r"\bmodel\b",
+                r"\bmodels\b",
+                r"\bweights\b",
+                r"\bdataset\b",
+                r"\bvertex\b",
+                r"\brag\b",
+            ],
         }
     )
     ai_workload_tags: dict[str, list[str]] = Field(

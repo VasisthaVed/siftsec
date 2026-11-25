@@ -259,3 +259,26 @@ class K8sPodAttrs(BaseModel):
     all_images_use_digest: bool = True
     run_as_non_root: bool | None = None
     runtime_class_name: str | None = None
+
+
+class GcpVertexWorkbenchAttrs(BaseModel):
+    kind: Literal["gcp_vertex_workbench"] = "gcp_vertex_workbench"
+    no_public_ip: bool | None = None
+    root_access_disabled: bool | None = None
+    kms_key_name: str | None = None
+    network: str | None = None
+
+
+class GcpVertexEndpointAttrs(BaseModel):
+    kind: Literal["gcp_vertex_endpoint"] = "gcp_vertex_endpoint"
+    private_endpoint_enabled: bool | None = None
+    kms_key_name: str | None = None
+    vpc_network: str | None = None
+
+
+class GcpGcsBucketAttrs(BaseModel):
+    kind: Literal["gcp_gcs_bucket"] = "gcp_gcs_bucket"
+    public_access_prevention: str | None = None
+    uniform_bucket_level_access: bool | None = None
+    kms_key_name: str | None = None
+    versioning_enabled: bool | None = None
