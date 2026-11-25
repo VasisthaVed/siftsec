@@ -3,7 +3,7 @@
 # 🛡️ TensorGuard (`ai-spm`)
 
 **AI Security Posture Management (AI-SPM) Scanner**  
-*Discover, audit, and secure AI/ML infrastructure, model weights, vector databases, and autonomous agents from the metal up.*
+*Discover, audit, and secure AI/ML infrastructure, model weights, vector databases, MCP servers, and autonomous agents from the metal up.*
 
 [![CI](https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml/badge.svg)](https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
@@ -22,18 +22,17 @@ Traditional CSPM tools (Prowler, Trivy, ScoutSuite) inspect generic cloud primit
 
 | Attack Surface | Traditional CSPM | 🛡️ TensorGuard (`ai-spm`) |
 | :--- | :--- | :--- |
-| **Model Weights (`.pt`, `.pkl`)** | Sees a passive blob in S3 | Audits **Pickle RCE deserialization risks** (`AML.T0010`) and enforces **SafeTensors** |
-| **Vector Databases (RAG)** | Treats OpenSearch/Qdrant like SQL | Flags public vector endpoints exposed to **Embedding Inversion (`Vec2Text` / `LLM09:2026`)** |
-| **Autonomous Agents** | Checks generic IAM syntax | Audits **Bedrock Guardrails**, **Excessive Agency (`LLM03:2026`)**, and wildcard agent roles |
-| **MCP Tool Runtimes** | Blind to Model Context Protocol | Scans **MCP tool manifests** for hidden prompt injection & rug-pull drift (`ASI10`) |
-| **Unknown ≠ Pass** | Silently skips or fails on `AccessDenied` | Tracks **coverage gaps (`Status.ERROR`)** cleanly and never inflates scores (`None` if unscanned) |
+| **Model Weights (`.pt`, `.pkl`)** | Sees a passive blob | Statically disassembles **pickle opcodes via `pickletools.genops()`** (never `pickle.loads()`) and enforces **SafeTensors** |
+| **Vector Databases (RAG)** | Treats OpenSearch like SQL | Audits OpenSearch & Serverless (`aoss`) for public access & **Embedding Inversion (`Vec2Text` / `LLM09:2026`)** |
+| **Autonomous Agents** | Checks generic IAM syntax | Audits **Bedrock Guardrails**, **Excessive Agency (`LLM03:2026`)**, trust conditions, and wildcard roles |
+| **MCP Tool Runtimes** | Blind to Model Context Protocol | Audits **`mcp.json`** for unpinned `npx`/`uvx` rug pulls, plaintext secrets, Unicode tag smuggling, & lockfile drift (`ASI10`) |
+| **Unknown ≠ Pass** | Silently skips or fails on `AccessDenied` | Tracks **coverage gaps (`Status.ERROR`)** cleanly and returns `None` (`N/A`) when unscanned |
 
 ---
 
-## ⚡ Quickstart (Zero Credentials Required)
+## ⚡ Quickstart
 
-Run TensorGuard immediately in simulated `--demo` mode to inspect the engine, rules, and Rich reporting:
-
+### 1. Zero-Credential Demo (10 Seconds)
 ```bash
 git clone https://github.com/VasisthaVed/tensorguard.git
 cd tensorguard
@@ -41,42 +40,57 @@ uv sync --extra dev
 uv run tensorguard scan --demo
 ```
 
-List all dynamically discovered rules:
-
+### 2. Local AI & MCP Audit (Your Laptop / CI Repo)
 ```bash
-uv run tensorguard list-rules
+# Scan local model files (.pt/.pkl/.safetensors) and workspace MCP configs
+uv run tensorguard scan --local --path .
+
+# Include your local HuggingFace cache (~/.cache/huggingface/hub)
+uv run tensorguard scan --local --path . --include-hf-cache
 ```
 
-> Both `tensorguard` and `ai-spm` CLI entry points are installed.
+### 3. Live AWS Environment Scan
+```bash
+# Check credentials & read-only permissions first
+uv run tensorguard doctor --profile my-sandbox --region us-east-1
+
+# Scan AWS AI services across regions
+uv run tensorguard scan --aws --regions us-east-1,us-west-2 --profile my-sandbox
+```
+
+### 4. Multi-Format Export (JSON, SARIF, Markdown)
+```bash
+uv run tensorguard scan --demo --format sarif --output results.sarif
+uv run tensorguard scan --demo --format json
+uv run tensorguard scan --demo --format markdown
+```
 
 ---
 
-## 🏗️ 7-Tier Bottom-Up AI Defense Architecture
+## 🧠 How It Works (Deterministic Core, Zero Hallucinations)
+
+TensorGuard uses a **pure, deterministic two-stage pipeline** (`Collector → Typed CloudResource → Pure BaseRule → Multi-Sink Reporter`). It does **not** send your infrastructure topology to external LLMs or risk hallucinated pass/fail verdicts—every finding is reproducible, offline-capable, and backed by an explicit fingerprint (`sha256(rule_id | resource_arn | scope)`).
 
 ```text
-[Tier 6] AI Supply Chain & Provenance   ──► AIBOM (CycloneDX 1.7 / SPDX 3.0), Weight Signing
-[Tier 5] MCP & Tool Runtimes            ──► Tool Poisoning, Manifest Hash-Pinning
-[Tier 4] Autonomous Agents & Guardrails ──► Bedrock Guardrails, Confused-Deputy Prevention
-[Tier 3] Inference Gateways & Shadow AI ──► Invocation Logging, Ollama/vLLM Port Discovery
-[Tier 2] Vector Databases & RAG         ──► VPC Isolation, FGAC, Vec2Text & PoisonedRAG Defense
-[Tier 1] Model Weights & Containers     ──► KMS CMK, SafeTensors vs Pickle, ECR Scan-on-Push
-[Tier 0] Infra, GPU Runtime & Secrets   ──► SageMaker DIA/RootAccess, K8s GPU & Secret Redaction
+[Local / AWS Collectors] ──► [Typed CloudResource + gaps] ──► [37 Auto-Discovered Rules] ──► [Console / JSON / SARIF / MD]
+   (Boto3 adaptive,             (Unknown != Fail;               (Pure, no network/I/O,        (Redacted secrets,
+    pickletools, MCP)            no raw dicts)                   shlex-quoted fixes)           weighted score 0-100)
 ```
 
 ---
 
-## 📋 Active Rules (Demo / Foundation Set)
+## 📋 Rule Coverage (37 Active Rules)
 
-| Rule ID | Service | Severity | Threat & Framework Mapping |
-| :--- | :--- | :--- | :--- |
-| `AI-SPM-S3-001` | S3 | `MEDIUM` | Model Weight Storage Lacks KMS CMK Encryption (`AML.T0044`, `LLM02:2026`) |
-| `AI-SPM-S3-002` | S3 | `CRITICAL` | Public Access Allowed on AI Model/Dataset Bucket (`AML.T0044`, `LLM02:2026`, `LLM05:2026`) |
-| `AI-SPM-S3-004` | S3 | `MEDIUM` | Insecure Model Serialization Heuristic: Pickle vs SafeTensors (`AML.T0010`, `LLM04:2026`) |
-| `AI-SPM-SAGEMAKER-001` | SageMaker | `HIGH` | Notebook Direct Internet Access Enabled (`AML.T0044`, `LLM02:2026`) |
-| `AI-SPM-BEDROCK-003` | Bedrock | `HIGH` | Bedrock Agent Missing Active Guardrail (`LLM01:2026`, `LLM03:2026`, `MG-3.1`) |
-| `AI-SPM-VECTOR-001` | OpenSearch | `CRITICAL` | Vector Database Publicly Exposed / Inversion Risk (`AML.T0044`, `LLM02:2026`, `LLM09:2026`) |
-| `AI-SPM-IAM-001` | IAM | `HIGH` | Excessive Agency: Wildcard Permissions on AI Roles (`LLM03:2026`, `ASI05`) |
-| `AI-SPM-MCP-001` | MCP | `CRITICAL` | MCP Tool Manifest Poisoning / Hidden Injections (`AML.T0010`, `LLM04:2026`, `ASI10`) |
+Run `uv run tensorguard list-rules` to see all dynamically discovered rules:
+
+* **Local Model & Archive Security (`AI-SPM-LOCAL-001`..`004`):** Dangerous pickle opcodes (`os`, `subprocess`), unallowlisted globals, zip-bomb ratio/size limits, SafeTensors header offset validation.
+* **MCP Config & Rug-Pull Defense (`AI-SPM-MCP-001`..`006`):** Unpinned `npx`/`uvx`/docker `:latest`, plaintext `env` secrets, Unicode tag smuggling (`U+E0000–U+E007F`), Base64 injection markers, lockfile drift, non-TLS HTTP / pipe-to-shell.
+* **Amazon S3 (`AI-SPM-S3-001`..`004`):** KMS CMK encryption, effective Public Access Block, dataset Object Versioning, Pickle vs SafeTensors heuristic.
+* **Amazon SageMaker (`AI-SPM-SAGEMAKER-001`..`007`):** Direct Internet Access, VPC subnet attachment, `RootAccess` disabled, Endpoint & DataCapture KMS, Training Job `EnableNetworkIsolation`, Studio Domain `VpcOnly`, IMDSv2 enforcement.
+* **Amazon Bedrock (`AI-SPM-BEDROCK-001`..`004`):** Model Invocation Logging, Knowledge Base DataSource KMS, Agent active Guardrails, Agent session KMS.
+* **Amazon ECR (`AI-SPM-ECR-001`..`003`):** `scanOnPush` (respecting registry `ENHANCED` Inspector scanning), `IMMUTABLE` image tags, public policy check.
+* **Amazon OpenSearch & Serverless (`AI-SPM-VECTOR-001`, `AI-SPM-OPENSEARCH-002`..`004`, `007`):** VPC isolation, FGAC, node-to-node TLS, public `Principal: "*"` policy, AOSS `AllowFromPublic=true`.
+* **AWS IAM & Shadow AI (`AI-SPM-IAM-001`..`003`, `AI-SPM-SHADOW-001`):** Wildcard actions, broad `*FullAccess` managed policies, missing `aws:SourceAccount`/`SourceArn` trust conditions, EC2 Security Groups exposing AI ports (`11434`, `8000`, `8001`, `8080`, `6333`, `19530`).
 
 ---
 
@@ -89,17 +103,13 @@ export AI_SPM_DEFAULT_FAIL_ON=CRITICAL
 export AI_SPM_APP_NAME="TensorGuard-Prod"
 ```
 
-Rules are auto-discovered at runtime via `pkgutil.iter_modules` and `importlib.metadata.entry_points(group="ai_spm.rules")`.
-
 ---
 
 ## 🔄 GitHub Code Scanning (SARIF v2.1.0)
 
-Export findings directly into GitHub's **Security → Code Scanning** tab:
-
 ```yaml
 - name: Run TensorGuard AI-SPM Scan
-  run: uv run tensorguard scan --demo --output results.sarif
+  run: uv run tensorguard scan --local --path . --format sarif --output results.sarif
 
 - name: Upload SARIF to GitHub Security
   uses: github/codeql-action/upload-sarif@v3
@@ -109,19 +119,18 @@ Export findings directly into GitHub's **Security → Code Scanning** tab:
 
 ---
 
-## ⚠️ Current Status, Limitations & Non-Goals
+## ⚠️ Limitations & Non-Goals
 
-* **Current Milestone (Phase 0 Complete):** The core engine (`CloudResource`, `Finding`, `fingerprint`, `redact`, weighted `posture_score`, `BaseRule`, `ScanRunner` exception barrier, `ConsoleReporter`, `SARIFReporter`) and `--demo` simulator are live.
-* **In Progress (Phase 1 → 2):** Local static Pickle opcode scanning (`pickletools.genops`), local MCP config auditing, and live AWS Boto3 collectors (`S3`, `SageMaker`, `Bedrock`, `ECR`, `OpenSearch`, `IAM`, `EC2`) are queued next per [PLAYBOOK.md](docs/PLAYBOOK.md).
-* **Non-Goals:** TensorGuard is a **read-only posture & static supply-chain auditor**. It never executes untrusted model files (`pickle.loads` / `torch.load`), never spawns untrusted MCP servers, and never mutates cloud infrastructure without explicit opt-in.
+* **Static Pickle Scanning:** `pickletools.genops()` is defense-in-depth—novel obfuscation chains can exist. Always prefer `.safetensors`.
+* **Config-Level MCP Audit:** `LocalMcpCollector` inspects `mcp.json` statically and never spawns untrusted servers.
+* **Read-Only Guarantee:** TensorGuard never modifies cloud infrastructure or writes to production vector databases.
 
 ---
 
-## 📚 Documentation & Build Playbook
+## 📚 Documentation
 
-- [Build Playbook (Phases 0–9)](docs/PLAYBOOK.md) — Single source of truth for implementation
-- [Engineering Decisions & Standards](docs/decisions.md) — ADRs 001–008 & coding guidelines
-- [AI Threat Model & Kill Chains](docs/threat-model.md) — Attack surfaces & adversary personas
-- [Security Rules Catalog](docs/ai-spm-rules-catalog.md) — Full 18-rule specification
-- [Engineering & Zero-Hardcoding Rules](docs/ai-rules.md) — Contributor & AI coding directives
-- [Master Vision & Roadmap](Roadmap.md) — 7-Tier architecture & research references
+- [AI Threat Model & Kill Chains](docs/threat-model.md)
+- [Security Rules Catalog](docs/ai-spm-rules-catalog.md)
+- [System Architecture & Design](docs/architecture.md)
+- [AWS Least-Privilege IAM Policy](docs/aws-iam-permissions.md)
+- [Master Vision & Roadmap](Roadmap.md)

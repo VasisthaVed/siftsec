@@ -1,23 +1,33 @@
+import sys
+from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 
+import boto3
 import typer
 from rich.console import Console
 
 # Trigger dynamic rule auto-discovery
 import ai_spm.rules  # noqa: F401
+from ai_spm import __version__
+from ai_spm.collectors.aws.client import AwsClientFactory, resolve_identity
+from ai_spm.collectors.aws.orchestrator import AwsOrchestrator
 from ai_spm.collectors.base import BaseCollector
 from ai_spm.collectors.local.mcp import LocalMcpCollector
 from ai_spm.collectors.local.models import LocalModelCollector
 from ai_spm.collectors.mock import MockCollector
 from ai_spm.config import settings
 from ai_spm.engine.context import ScanContext
-from ai_spm.engine.models import CloudResource, Severity
+from ai_spm.engine.models import CloudResource, CoverageGap, ScanSummary, Severity
 from ai_spm.engine.runner import ScanRunner
-from ai_spm.engine.scoring import exit_code
+from ai_spm.engine.scoring import exit_code, posture_score
 from ai_spm.errors import AISPMError
 from ai_spm.reporters.console import ConsoleReporter
+from ai_spm.reporters.json_rep import JSONReporter
+from ai_spm.reporters.markdown import MarkdownReporter
 from ai_spm.reporters.sarif import SARIFReporter
 from ai_spm.rules.registry import registry
+from ai_spm.utils.fs import atomic_write_secure
 from ai_spm.utils.logger import configure_logging
 
 app = typer.Typer(
@@ -28,6 +38,13 @@ app = typer.Typer(
 )
 err_console = Console(stderr=True)
 out_console = Console()
+
+
+class OutputFormat(StrEnum):
+    console = "console"
+    json = "json"
+    sarif = "sarif"
+    markdown = "markdown"
 
 
 class _CompositeCollector(BaseCollector):
@@ -41,25 +58,44 @@ class _CompositeCollector(BaseCollector):
         return resources
 
 
+class _PreCollectedCollector(BaseCollector):
+    def __init__(self, items: list[CloudResource]) -> None:
+        self._items = items
+
+    def collect(self) -> list[CloudResource]:
+        return self._items
+
+
 @app.command()
 def scan(
-    demo: bool = typer.Option(
-        False, "--demo", "-d", help="Run in zero-credential demo simulation mode"
-    ),
+    demo: bool = typer.Option(False, "--demo", "-d", help="Run zero-credential demo simulation"),
     local: bool = typer.Option(
         False, "--local", "-l", help="Scan local model files and MCP configurations"
     ),
+    aws: bool = typer.Option(False, "--aws", help="Scan live AWS environment via Boto3"),
     path: list[Path] = typer.Option(
         [Path(".")], "--path", "-p", help="Local path(s) to scan when --local is enabled"
     ),
     include_hf_cache: bool = typer.Option(
         False, "--include-hf-cache", help="Also scan ~/.cache/huggingface/hub in --local mode"
     ),
+    regions: str = typer.Option(
+        "us-east-1", "--regions", "-r", help="Comma-separated AWS regions or 'all'"
+    ),
+    profile: str | None = typer.Option(None, "--profile", help="AWS CLI named profile"),
     services: str | None = typer.Option(
         None, "--services", "-s", help="Comma-separated services to scan (e.g. s3,bedrock,mcp)"
     ),
+    ai_only: bool = typer.Option(
+        True, "--ai-only/--all-resources", help="Filter non-AI cloud resources"
+    ),
+    fmt: OutputFormat = typer.Option(OutputFormat.console, "--format", "-f", help="Output format"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Output file path"),
-    sarif: bool = typer.Option(False, "--sarif", help="Export findings in SARIF v2.1.0 format"),
+    sarif: bool = typer.Option(False, "--sarif", help="Shortcut for --format sarif"),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing output file"),
+    strict_coverage: bool = typer.Option(
+        False, "--strict-coverage", help="Exit 3 if any collector permission gaps occur"
+    ),
     fail_on: Severity = typer.Option(
         settings.default_fail_on,
         "--fail-on",
@@ -70,45 +106,125 @@ def scan(
 ) -> None:
     """Scan AI/ML workloads for security posture and threat misconfigurations."""
     configure_logging(verbose=verbose, quiet=quiet)
+    started_at = datetime.now(UTC)
 
     try:
-        collector: BaseCollector
+        selected_services = [s.strip() for s in services.split(",")] if services else None
+        region_list = [r.strip() for r in regions.split(",") if r.strip()]
+        ctx = ScanContext(
+            regions=region_list,
+            services=selected_services,
+            fail_on=fail_on,
+            ai_only=ai_only,
+            profile=profile,
+        )
+
+        coverage_gaps: list[CoverageGap] = []
         if local:
             for p in path:
                 if not p.exists():
                     raise AISPMError(f"Target path does not exist: {p}")
-            collector = _CompositeCollector(
+            collector: BaseCollector = _CompositeCollector(
                 [
                     LocalModelCollector(paths=path, include_hf_cache=include_hf_cache),
                     LocalMcpCollector(paths=path),
                 ]
             )
+            resources = collector.collect()
+        elif aws:
+            session = boto3.Session(profile_name=profile) if profile else boto3.Session()
+            factory = AwsClientFactory(session, settings)
+            col_result = AwsOrchestrator(factory, settings).run(ctx)
+            resources = col_result.resources
+            coverage_gaps = col_result.coverage_gaps
         else:
             if not demo:
                 err_console.print(
-                    "[yellow]Live AWS scanning requires credentials (Phase 2). Running in --demo mode.[/]"
+                    "[yellow]No target specified (--local / --aws). Running in --demo mode.[/]"
                 )
-            collector = MockCollector()
+            resources = MockCollector().collect()
 
-        selected_services = [s.strip() for s in services.split(",")] if services else None
-        ctx = ScanContext(services=selected_services, fail_on=fail_on)
-        runner = ScanRunner(collector=collector, context=ctx)
-        findings = runner.run()
+        findings = ScanRunner(collector=_PreCollectedCollector(resources), context=ctx).run()
+        finished_at = datetime.now(UTC)
+        summary = ScanSummary(
+            total_resources=len(resources),
+            ai_resources=sum(1 for r in resources if r.is_ai_workload),
+            findings=findings,
+            posture_score=posture_score(findings, settings.severity_weights),
+            coverage_gaps=coverage_gaps,
+            started_at=started_at,
+            finished_at=finished_at,
+            tool_version=__version__,
+        )
 
-        if sarif and not output:
-            out_console.print(SARIFReporter().export(findings))
+        active_fmt = OutputFormat.sarif if sarif else fmt
+        if active_fmt is OutputFormat.json:
+            payload = JSONReporter().export(summary)
+        elif active_fmt is OutputFormat.sarif:
+            payload = SARIFReporter().export(findings)
+        elif active_fmt is OutputFormat.markdown:
+            payload = MarkdownReporter().export(summary)
         else:
+            payload = ""
             ConsoleReporter().render(findings)
-            if output:
-                output.write_text(SARIFReporter().export(findings), encoding="utf-8")
-                err_console.print(f"[green]Report saved to {output}[/]")
 
-        code = exit_code(findings, fail_on)
+        if output:
+            out_text = payload or JSONReporter().export(summary)
+            atomic_write_secure(output, out_text, force=force)
+            err_console.print(f"[green]Report saved to {output}[/]")
+        elif payload:
+            out_console.print(payload)
+
+        code = exit_code(
+            findings,
+            fail_on,
+            strict_coverage=strict_coverage,
+            coverage_gaps_count=len(coverage_gaps),
+        )
         if code != 0:
             raise typer.Exit(code=code)
     except AISPMError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(code=exc.exit_code) from exc
+
+
+@app.command("doctor")
+def doctor(
+    profile: str | None = typer.Option(None, "--profile", help="AWS CLI named profile"),
+    region: str = typer.Option("us-east-1", "--region", help="AWS region to probe"),
+) -> None:
+    """Check Python environment, AWS credentials, and read-only collector readiness."""
+    configure_logging()
+    out_console.print(f"[bold cyan]TensorGuard Doctor[/] (v{__version__})")
+    out_console.print(f" • Python: {sys.version.split()[0]}")
+    out_console.print(f" • Registered rules: {len(registry.get_rules())}")
+
+    try:
+        session = boto3.Session(profile_name=profile) if profile else boto3.Session()
+        factory = AwsClientFactory(session, settings)
+        identity = resolve_identity(factory)
+        out_console.print(
+            f" • AWS Identity: [green]{identity.arn}[/] (partition={identity.partition})"
+        )
+    except AISPMError as exc:
+        out_console.print(f" • AWS Identity: [yellow]Not configured ({exc})[/]")
+        return
+
+    probes = [
+        ("s3", "list_buckets", {}),
+        ("sagemaker", "list_notebook_instances", {}),
+        ("bedrock", "list_guardrails", {}),
+        ("ecr", "describe_repositories", {}),
+        ("opensearch", "list_domain_names", {}),
+        ("ec2", "describe_security_groups", {"MaxResults": 5}),
+    ]
+    for svc, method, kw in probes:
+        try:
+            client = factory.client(svc, region=region)
+            getattr(client, method)(**kw)
+            out_console.print(f" • [green]OK[/] {svc}.{method}")
+        except Exception as exc:  # noqa: BLE001
+            out_console.print(f" • [yellow]GAP[/] {svc}.{method}: {type(exc).__name__}")
 
 
 @app.command("list-rules")
@@ -118,6 +234,12 @@ def list_rules() -> None:
     out_console.print(f"[bold cyan]Registered AI-SPM Rules ({len(rules)} total):[/]\n")
     for r in rules:
         out_console.print(f" • [bold yellow]{r.rule_id}[/]: [white]{r.title}[/] [{r.severity}]")
+
+
+@app.command("version")
+def version() -> None:
+    """Show installed TensorGuard version."""
+    out_console.print(f"tensorguard {__version__}")
 
 
 if __name__ == "__main__":
