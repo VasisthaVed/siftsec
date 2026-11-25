@@ -5,10 +5,13 @@ from rich.console import Console
 
 # Trigger dynamic rule auto-discovery
 import ai_spm.rules  # noqa: F401
+from ai_spm.collectors.base import BaseCollector
+from ai_spm.collectors.local.mcp import LocalMcpCollector
+from ai_spm.collectors.local.models import LocalModelCollector
 from ai_spm.collectors.mock import MockCollector
 from ai_spm.config import settings
 from ai_spm.engine.context import ScanContext
-from ai_spm.engine.models import Severity
+from ai_spm.engine.models import CloudResource, Severity
 from ai_spm.engine.runner import ScanRunner
 from ai_spm.engine.scoring import exit_code
 from ai_spm.errors import AISPMError
@@ -27,10 +30,30 @@ err_console = Console(stderr=True)
 out_console = Console()
 
 
+class _CompositeCollector(BaseCollector):
+    def __init__(self, collectors: list[BaseCollector]) -> None:
+        self._collectors = collectors
+
+    def collect(self) -> list[CloudResource]:
+        resources: list[CloudResource] = []
+        for col in self._collectors:
+            resources.extend(col.collect())
+        return resources
+
+
 @app.command()
 def scan(
     demo: bool = typer.Option(
         False, "--demo", "-d", help="Run in zero-credential demo simulation mode"
+    ),
+    local: bool = typer.Option(
+        False, "--local", "-l", help="Scan local model files and MCP configurations"
+    ),
+    path: list[Path] = typer.Option(
+        [Path(".")], "--path", "-p", help="Local path(s) to scan when --local is enabled"
+    ),
+    include_hf_cache: bool = typer.Option(
+        False, "--include-hf-cache", help="Also scan ~/.cache/huggingface/hub in --local mode"
     ),
     services: str | None = typer.Option(
         None, "--services", "-s", help="Comma-separated services to scan (e.g. s3,bedrock,mcp)"
@@ -49,14 +72,27 @@ def scan(
     configure_logging(verbose=verbose, quiet=quiet)
 
     try:
-        if not demo:
-            err_console.print(
-                "[yellow]Live AWS scanning requires credentials. Running in --demo mode for testing.[/]"
+        collector: BaseCollector
+        if local:
+            for p in path:
+                if not p.exists():
+                    raise AISPMError(f"Target path does not exist: {p}")
+            collector = _CompositeCollector(
+                [
+                    LocalModelCollector(paths=path, include_hf_cache=include_hf_cache),
+                    LocalMcpCollector(paths=path),
+                ]
             )
+        else:
+            if not demo:
+                err_console.print(
+                    "[yellow]Live AWS scanning requires credentials (Phase 2). Running in --demo mode.[/]"
+                )
+            collector = MockCollector()
 
         selected_services = [s.strip() for s in services.split(",")] if services else None
         ctx = ScanContext(services=selected_services, fail_on=fail_on)
-        runner = ScanRunner(collector=MockCollector(), context=ctx)
+        runner = ScanRunner(collector=collector, context=ctx)
         findings = runner.run()
 
         if sarif and not output:
