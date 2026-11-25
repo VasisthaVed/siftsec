@@ -16,6 +16,7 @@ class BaseRule(ABC):
     description: ClassVar[str]
     severity: ClassVar[Severity]
     service: ClassVar[str]
+    resource_kinds: ClassVar[frozenset[str]] = frozenset()
     required_attrs: ClassVar[tuple[str, ...]] = ()
     mitre_atlas: ClassVar[list[str]] = []
     owasp_llm: ClassVar[list[str]] = []

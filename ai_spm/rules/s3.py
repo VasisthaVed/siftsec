@@ -120,6 +120,36 @@ class S3InsecureSerializationRule(BaseRule):
         )
 
 
+class S3DatasetVersioningRule(BaseRule):
+    rule_id = "AI-SPM-S3-003"
+    title = "Missing Object Versioning on AI Training Dataset Bucket"
+    description = (
+        "Enable S3 Object Versioning to protect training/fine-tuning datasets from tampering."
+    )
+    severity = Severity.MEDIUM
+    service = "s3"
+    resource_kinds = frozenset({"s3_bucket"})
+    required_attrs = ("versioning",)
+    mitre_atlas = ["AML.T0020"]
+    owasp_llm = ["LLM05:2026"]
+
+    def evaluate(self, resource: CloudResource) -> Finding:
+        ver = resource.metadata.get("versioning")
+        if ver == "Enabled":
+            return self.passed(
+                resource, f"S3 bucket '{resource.name}' has Object Versioning enabled."
+            )
+        return self.failed(
+            resource,
+            f"S3 bucket '{resource.name}' has Object Versioning {ver or 'Disabled'}.",
+            remediation=(
+                f"aws s3api put-bucket-versioning --bucket {shlex.quote(resource.name)} "
+                f"--region {shlex.quote(resource.region)} --versioning-configuration Status=Enabled"
+            ),
+        )
+
+
 registry.register(S3ModelEncryptionRule())
 registry.register(S3BlockPublicAccessRule())
+registry.register(S3DatasetVersioningRule())
 registry.register(S3InsecureSerializationRule())

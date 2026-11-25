@@ -12,6 +12,7 @@ class SageMakerDirectInternetAccessRule(BaseRule):
     description = "Notebooks must not have direct internet access to prevent unmonitored egress."
     severity = Severity.HIGH
     service = "sagemaker"
+    resource_kinds = frozenset({"sagemaker_notebook"})
     mitre_atlas = ["AML.T0044"]
     owasp_llm = ["LLM02:2026"]
 
@@ -38,6 +39,7 @@ class BedrockGuardrailsRule(BaseRule):
     description = "Bedrock Agents must have an active Guardrail configured to prevent excessive agency and prompt injection."
     severity = Severity.HIGH
     service = "bedrock"
+    resource_kinds = frozenset({"bedrock_agent"})
     mitre_atlas = []
     owasp_llm = ["LLM01:2026", "LLM03:2026"]
     nist_ai_rmf = ["MG-3.1"]
@@ -69,6 +71,7 @@ class OpenSearchVectorPublicAccessRule(BaseRule):
     )
     severity = Severity.CRITICAL
     service = "opensearch"
+    resource_kinds = frozenset({"opensearch_domain", "opensearch_serverless"})
     mitre_atlas = ["AML.T0044"]
     owasp_llm = ["LLM02:2026", "LLM09:2026"]
 
@@ -95,6 +98,7 @@ class IAMWildcardPermissionsRule(BaseRule):
     description = "AI agent and inference roles must not contain unrestricted wildcard permissions."
     severity = Severity.HIGH
     service = "iam"
+    resource_kinds = frozenset({"iam_role"})
     mitre_atlas = []
     owasp_llm = ["LLM03:2026", "ASI05"]
 
