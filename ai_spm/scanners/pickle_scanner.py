@@ -138,6 +138,10 @@ def scan_pickle_stream(
                 strings.append(memo.get(arg, ""))
                 if len(strings) > 8:
                     del strings[:-8]
+            elif name == "DUP" and strings:
+                strings.append(strings[-1])
+            elif name == "POP" and strings:
+                strings.pop()
             elif name in ("GLOBAL", "INST"):
                 mod, _, attr = str(arg).partition(" ")
                 _classify_global(mod, attr, name, pos, cfg, hits)
@@ -253,13 +257,22 @@ def scan_model_file(path: Path, cfg: AISPMConfig) -> LocalModelFileAttrs:
         hits: list[PickleHit] = []
         scan_error: str | None = None
         ratio_exceeded = False
+        cumulative_bytes = 0
         try:
             with zipfile.ZipFile(path, "r") as zf:
                 for info in zf.infolist():
+                    if ".." in Path(info.filename).parts or info.filename.startswith("/"):
+                        scan_error = "suspicious_zip_path"
+                        break
                     if not info.filename.endswith(".pkl"):
                         continue
+                    cumulative_bytes += info.file_size
                     ratio = info.file_size / max(info.compress_size, 1)
-                    if info.file_size > cfg.max_zip_uncompressed_bytes or ratio > cfg.max_zip_ratio:
+                    if (
+                        info.file_size > cfg.max_zip_uncompressed_bytes
+                        or cumulative_bytes > cfg.max_zip_uncompressed_bytes
+                        or ratio > cfg.max_zip_ratio
+                    ):
                         ratio_exceeded = True
                         scan_error = "zip_limit_exceeded"
                         break

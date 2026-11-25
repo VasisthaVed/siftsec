@@ -50,8 +50,14 @@ def _is_pinned(
     if runner == "uvx":
         return any(_UVX_PIN_RE.search(a) for a in args)
     if runner == "docker":
-        return all(":latest" not in a for a in args) and any(
-            "@sha256:" in a or re.search(r":[0-9v]", a) for a in args
+        # Ignore port mappings (-p 8080:8080) or volume mounts (-v /a:/b) when checking image tags.
+        non_flag_args = [a for a in args if not a.startswith("-") and not a.startswith("/")]
+        image_candidates = [a for a in non_flag_args if not re.fullmatch(r"\d+:\d+", a)]
+        if not image_candidates:
+            return False
+        image = image_candidates[-1]
+        return ":latest" not in image and (
+            "@sha256:" in image or bool(re.search(r":[A-Za-z0-9_.-]+$", image))
         )
     return True
 
@@ -114,16 +120,22 @@ class LocalMcpCollector(BaseCollector):
         cfg: AISPMConfig | None = None,
         *,
         lockfile_path: Path | None = None,
+        include_user_configs: bool = False,
     ) -> None:
         self.cfg = cfg or settings
         self.workspace_roots = list(paths) if paths else [Path(".")]
         self.lockfile_path = lockfile_path
+        self.include_user_configs = include_user_configs
 
     def _discover_configs(self) -> list[Path]:
         seen: set[Path] = set()
         configs: list[Path] = []
 
-        candidates: list[Path] = [Path(p).expanduser() for p in self.cfg.local_mcp_paths]
+        candidates: list[Path] = (
+            [Path(p).expanduser() for p in self.cfg.local_mcp_paths]
+            if self.include_user_configs
+            else []
+        )
         for root in self.workspace_roots:
             if root.is_file() and root.name.endswith(".json"):
                 candidates.append(root)
@@ -231,6 +243,15 @@ class LocalMcpCollector(BaseCollector):
                 suspicious_blobs.extend(_scan_suspicious_blobs(arg, self.cfg, f"args[{idx}]"))
             hidden_unicode.extend(_scan_hidden_unicode(command, "command"))
             suspicious_blobs.extend(_scan_suspicious_blobs(command, self.cfg, "command"))
+            if url:
+                hidden_unicode.extend(_scan_hidden_unicode(url, "url"))
+                suspicious_blobs.extend(_scan_suspicious_blobs(url, self.cfg, "url"))
+            for env_k, env_v in env.items():
+                if isinstance(env_v, str):
+                    hidden_unicode.extend(_scan_hidden_unicode(env_v, f"env[{env_k}]"))
+                    suspicious_blobs.extend(
+                        _scan_suspicious_blobs(env_v, self.cfg, f"env[{env_k}]")
+                    )
 
             full_cmd = f"{command} {' '.join(args)}"
             pipe_to_shell = bool(_PIPE_SHELL_RE.search(full_cmd))

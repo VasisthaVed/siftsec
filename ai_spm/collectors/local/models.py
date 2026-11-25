@@ -41,6 +41,8 @@ class LocalModelCollector(BaseCollector):
 
         while stack and len(discovered) < self.cfg.max_local_files:
             current = stack.pop()
+            if current.is_symlink():
+                continue
             if current.is_file():
                 discovered.append(current)
                 continue

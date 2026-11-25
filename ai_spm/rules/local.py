@@ -26,6 +26,7 @@ class PickleDangerousOpcodesRule(BaseRule):
     description = "Static pickletools inspection detected arbitrary code execution imports (e.g. os, subprocess)."
     severity = Severity.CRITICAL
     service = "local"
+    required_attrs = ("scan",)
     mitre_atlas = ["AML.T0010"]
     owasp_llm = ["LLM04:2026"]
 
@@ -58,6 +59,7 @@ class PickleUnknownGlobalsRule(BaseRule):
     description = "Pickle checkpoints contain globals outside the safe allowlist; static scanning is defense-in-depth only."
     severity = Severity.MEDIUM
     service = "local"
+    required_attrs = ("scan",)
     mitre_atlas = ["AML.T0010"]
     owasp_llm = ["LLM04:2026"]
 
@@ -88,6 +90,7 @@ class ModelArchiveLimitRule(BaseRule):
     description = "Zip bomb ratio or opcode budget exceeded while inspecting model archive."
     severity = Severity.HIGH
     service = "local"
+    required_attrs = ("scan",)
     mitre_atlas = ["AML.T0010"]
     owasp_llm = ["LLM04:2026"]
 
@@ -120,6 +123,7 @@ class SafetensorsHeaderRule(BaseRule):
     description = "SafeTensors file failed 8-byte header length or tensor offset validation."
     severity = Severity.MEDIUM
     service = "local"
+    required_attrs = ("scan",)
     owasp_llm = ["LLM04:2026"]
 
     def evaluate(self, resource: CloudResource) -> Finding:
