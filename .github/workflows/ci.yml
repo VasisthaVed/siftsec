@@ -1,0 +1,43 @@
+name: TensorGuard CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  quality-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run Ruff lint & format check
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run Mypy strict type check
+        run: uv run mypy ai_spm
+
+      - name: Run Pytest suite
+        run: uv run pytest --cov=ai_spm --cov-report=term-missing
+
+      - name: Generate demo SARIF report
+        run: uv run ai-spm scan --demo --output tensorguard-demo.sarif || true
+
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tensorguard-sarif
+          path: tensorguard-demo.sarif
