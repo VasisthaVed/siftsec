@@ -305,62 +305,148 @@ To achieve breakout adoption alongside Prowler (10k+ stars), Trivy (24k+ stars),
 
 ---
 
-## 7. Raw Engineering Roadmap
+## 7. Engineering Roadmap (Revised — Ship First, Correlate Second)
 
-```
-+================================================================================================+
-|                                IMPLEMENTATION PHASES                                           |
-+================================================================================================+
-| Phase 1: Core Engine, Pydantic Models & --demo Simulation Engine                               |
-| Phase 2: AWS Boto3 Resilient Collector Layer                                                   |
-| Phase 3: 18 Core AWS Rules (Tiers 0-4)                                                         |
-| Phase 4: Multi-Sink Reporters (Rich Terminal, SARIF v2.1.0, JSON, Markdown)                    |
-| Phase 5: CI/CD, GitHub Action & Public Launch                                                   |
-| Phase 6: GCP Vertex AI Collector & Rules                                                        |
-| Phase 7: Azure AI Foundry Collector & Rules                                                     |
-| Phase 8: Kubernetes GPU Runtime Collector & Rules                                               |
-| Phase 9: MCP Tool Poisoning & Rug-Pull Detection Engine                                        |
-| Phase 10: AI SBOM Generation (CycloneDX v1.7 / SPDX 3.0)                                       |
-| Phase 11: RAG Poisoning Canary System & Post-Retrieval Sanitization                             |
-| Phase 12: Model Provenance, Watermark Verification & Shadow AI Network Scanner                  |
-+================================================================================================+
-```
+> **Why this order?** The blunt reality: phases 0–10.1 built a rigorous scaffold. The gap between "rigorous scaffold" and "thing people actually use" is not more Rust — it's a working `pip install`, real fixtures, and a GitHub Action users can drop into their CI in 30 seconds. We close that gap first, then finish the correlation engine on top of real user feedback.
 
-### Phase 1: Core Engine, Models & `--demo`
-### Phase 0–4: Core Engine, Local Scanner, AWS Collectors/Rules, Reporters & CLI (Complete)
+---
+
+### Status Summary
+
+| Phase | Description | Status |
+| :---: | :--- | :---: |
+| 0–4 | Core engine, local scanner, AWS collectors/rules, reporters, CLI | ✅ Done |
+| 5 | Kubernetes GPU runtime security | ✅ Done |
+| 6 | GCP Vertex AI collector & rules | ✅ Done |
+| 7 | AI supply chain & AIBOM (CycloneDX / SPDX) | ✅ Done |
+| 8 | Hardening, threat model, observability | ✅ Done |
+| 9 | Attack-path correlation graph, scan diff, compliance evidence | ✅ Done |
+| 10.1 | Hybrid Rust/Python core: `parse_json_bounded`, 10-tool ingest adapters | ✅ Done |
+| **S1** | **Ship: PyPI wheel + GitHub Action** | 🔴 Blocker |
+| **S2** | **Real fixtures: replace all synthetic SARIF with recorded tool output** | 🔴 Blocker |
+| **S3** | **Local scan UX: `pip install tensorguard` → `tensorguard scan --local .` just works** | 🟡 Next |
+| 10.2 | Rust dedup engine (`FindingIndex`, SipHash-1-3, ≤5ms/200 findings) | 📋 Planned |
+| 10.3 | Correlation graph (`petgraph DiGraph<u32>`, skill nodes, `model→model` edges) | 📋 Planned |
+| 10.4 | Reachability BFS (blast-radius scoring, predecessor path, ≥5× reduction gate) | 📋 Planned |
+| 10.5 | Wedge-A prioritization (cross-tool severity fusion) | 📋 Planned |
+| 10.6 | Benchmark & falsification gate (negative result published if <5× / <50% precision) | 📋 Planned |
+| 11 | Model signing & post-quantum (ML-DSA-65 / FIPS 204, subliminal-channel mitigation) | 📋 Planned |
+| 12 | Agent skill supply chain (registry collector, MinHash LSH campaign detection) | 📋 Planned |
+| 13 | Compliance evidence export (EU AI Act 2027-12-02, NIST AI 600-1, ISO 42001) | 📋 Planned |
+
+---
+
+### Phases 0–10.1 — Completed Work
+
+**Phase 0–4: Core Engine, Local Scanner, AWS, Reporters (Complete)**
 - Pydantic v2 data models (`CloudResource`, `Finding`, `CoverageGap`, `ScanSummary`), `AISPMConfig` (`AI_SPM_*`), `RuleRegistry` entry-point discovery, weighted posture scoring (`None` on 0 evaluated), secret redaction (`redact()`), and expiry-enforced suppressions/baselines.
-- Hostile-input local scanners: `pickletools.genops()` static disassembler, zip-bomb/zip-slip guards, SafeTensors header checks, and `mcp.json` auditor + SHA-256 lockfile (`tensorguard mcp-lock`).
-- Resilient AWS collectors (`s3`, `sagemaker`, `bedrock`, `ecr`, `opensearch`, `iam`, `ec2`) with `AccessDenied` → `CoverageGap` tracking and 18+ AWS security rules.
-- Atomic `0600` writers, Rich Console, JSON, SARIF v2.1.0 (`partialFingerprints`), and escaped GFM Markdown PR reporters.
+- Hostile-input local scanners: `pickletools.genops()` static disassembler, zip-bomb/zip-slip guards, SafeTensors header checks, `mcp.json` auditor + SHA-256 lockfile (`tensorguard mcp-lock`).
+- Resilient AWS collectors (`s3`, `sagemaker`, `bedrock`, `ecr`, `opensearch`, `iam`, `ec2`) with `AccessDenied` → `CoverageGap` tracking and 37 auto-discovered security rules.
+- Atomic `0600` writers, Rich Console, JSON, SARIF v2.1.0 (`partialFingerprints`), GFM Markdown reporters.
 
-### Phase 5: Kubernetes GPU Runtime Security (Complete)
-- `K8sCollector` (`kubernetes` optional extra `[k8s]`) with `limit=500` pagination and multi-tenant GPU namespace counting.
-- Rules (`AI-SPM-K8S-001..004`): NVIDIA Container Toolkit `< 1.17.8` (Bulletin 5659: `CVE-2025-23266`/`CVE-2025-23267`), GPU time-slicing without MIG, privileged/`hostPID`/`/dev/nvidia*` `hostPath` escapes, and mutable image tags without `@sha256:`.
+**Phase 5–9: K8s, GCP, AIBOM, Hardening, Correlation (Complete)**
+- `K8sCollector` with NVIDIA Container Toolkit CVE-2025-23266 audit, GPU time-slicing/MIG rules, privileged pod escape checks.
+- `GcpCollector` with Vertex AI Workbench, Endpoints, GCS model bucket rules.
+- Deterministic CycloneDX 1.7 ML-BOM and SPDX 3.0 AI-profile AIBOM generation.
+- `docs/threat-model.md` STRIDE matrix, `SECURITY.md`, `--log-json`, `--debug-bundle`.
+- `ResourceGraph` multi-hop CRITICAL attack-path correlation, fingerprint scan diff, compliance control summaries.
 
-### Phase 6: Multi-Cloud Expansion — GCP Vertex AI & GCS (Complete)
-- Provider-neutral `ProviderCollector` protocol and `ProviderRegistry` (`ai_spm.collectors` entry points).
-- `GcpCollector` (`[gcp]` optional extra) and rules `AI-SPM-GCP-001..006` for Vertex AI Workbench, Vertex Endpoints, and GCS model buckets.
+**Phase 10.1: Hybrid Rust/Python Core (Complete)**
+- `rust/tensorguard-core` (`pyo3 0.28.3`, `abi3-py312`, `panic = "unwind"`, `thiserror` → `PyErr`, 3-bound `parse_bounded` with byte cap + depth pre-pass + `serde_stacker`).
+- Pure-Python `_fallback/` + `_core_loader.py` with parity test suite (71 tests pass, `HAS_RUST = True`).
+- SARIF & native JSON ingest adapters for 10 tools: `ModelAudit`, `mcpvuln`, `Trivy`, `Prowler`, `Semgrep`, `agent-bom`, `mcp-tool-auditor`, `MCPiranha`, `agent-audit-kit`, `Cisco MCP Scanner`.
+- `deny.toml`, `wheels.yml` (abi3 matrix), `rust-gates.yml` (clippy + cargo-deny), `benches/sarif_parse.rs`, `rust/tensorguard-fuzz/`.
 
-### Phase 7: AI Supply Chain & AIBOM (Complete)
-- Offline HuggingFace cache provenance (`models--<org>--<repo>/snapshots/<commit>`), license extraction, and `.tensorguard-models.lock` allowlist rules (`AI-SPM-SUPPLY-001..003`).
-- Deterministic **CycloneDX 1.7 ML-BOM** and **SPDX 3.0 AI-profile** generation (`--sbom cyclonedx|spdx`).
+---
 
-### Phase 8: Hardening, Threat Model & Observability (Complete)
-- `docs/threat-model.md` (STRIDE traceability matrix) and `SECURITY.md`.
-- `--log-json` (redacted JSON logs), `--timings`, `--no-plugins`, `tensorguard plugins`, and `--debug-bundle` (redacted diagnostics zip).
+### STAGE S1 — Ship: PyPI Wheel + Working GitHub Action
+> **Why first:** None of the correlation work matters if users can't `pip install tensorguard`. This is the actual gate to any adoption.
 
-### Phase 9: Attack-Path Correlation, Scan Diff & Compliance Evidence (Complete)
-- `ResourceGraph` multi-hop `CRITICAL` attack-path correlation (`AI-SPM-PATH-001..003`, `--correlate`).
-- Fingerprint scan diff (`tensorguard diff old.json new.json --fail-on-new`) and compliance control summaries (`tensorguard report-compliance`).
+**S1.1 — PyPI release**
+- Register `tensorguard` on PyPI (or `ai-spm` if taken). Configure `pyproject.toml` with correct metadata, entry points, and optional extras (`[aws]`, `[k8s]`, `[gcp]`, `[dev]`).
+- Add `publish.yml` GitHub Actions workflow: on `push tag v*.*.*` → `maturin publish` (Rust wheel) + `uv publish` (pure-Python sdist fallback). Requires `PYPI_TOKEN` secret.
+- Pre-built `abi3-py312` wheels for linux/x86_64, linux/aarch64, macos/arm64, windows/amd64 (already in `wheels.yml` matrix).
+- **Exit gate:** `pip install tensorguard` works in a clean venv. `tensorguard scan --demo` runs without cloning the repo.
 
-### Phase 10: Hybrid Rust/Python Core & AI Finding Correlation Layer (In Progress — 10.1 Complete)
-- **10.1 (Complete):** `rust/tensorguard-core` (`pyo3 0.28.3`, `abi3-py312`, `panic = "unwind"`, `thiserror` -> `PyErr`, 3-bound `parse_bounded` + `serde_stacker`), pure-Python `_fallback/` + `_core_loader.py` parity tests, SARIF & native JSON ingest adapters (`ModelAudit`, `mcpvuln`, `Trivy`, `Prowler`, `Semgrep`, `agent-bom`, `mcp-tool-auditor`, `MCPiranha`, `agent-audit-kit`, `Cisco MCP Scanner`), `deny.toml`, `wheels.yml`, `rust-gates.yml`, `benches/sarif_parse.rs`, and `rust/tensorguard-fuzz/`.
-- **10.2–10.6 (Next):** Rust cross-tool dedup (`SipHash-1-3`), general BFS reachability (`R3` data-store then `R2` skill/agent/model-handoff), explainable scoring, and reproducible benchmark.
+**S1.2 — `uses: VasisthaVed/tensorguard/.github/actions/scan@v1` GitHub Action**
+- Create `.github/actions/scan/action.yml` (composite action): installs `uv`, installs `tensorguard[aws]`, runs `tensorguard scan --local --path ${{ inputs.path }} --format sarif --output tensorguard.sarif`, then calls `github/codeql-action/upload-sarif@v3`.
+- Document in README as a 4-line drop-in. This is how tools like Trivy and Semgrep get stars — the GH Action discovery path.
+- **Exit gate:** A test repo running `uses: VasisthaVed/tensorguard/.github/actions/scan@v1` produces a populated Security Alerts tab.
 
-### Phase 11–13: Model Integrity Verifier, Skill Supply Chain & Compliance Export (Planned)
-- **Phase 11 (ReDerive):** Signing-profile audit (reject randomized-mode ML-DSA `rnd != 0^256`), GGUF verifiability manifest & per-tensor re-derivation, OMS/Sigstore integration, AISVS mapping.
-- **Phase 12 (Agent Skill Supply Chain):** Skill registry collector (ClawHub/OpenClaw/MCP catalogs), MinHash LSH campaign detection, `OWASP AST02` mapping.
-- **Phase 13 (Compliance Evidence Export):** `frameworks.yaml` (EU AI Act Art. 15 / Reg. (EU) 2026/1744, NIST AI 600-1, ISO/IEC 42001), signed tamper-evident evidence packs, and GRC JSON export.
+**S1.3 — `uvx tensorguard scan --demo` works (zero-install path)**
+- Confirm `uvx tensorguard` works from PyPI (the pure-Python sdist, Rust optional). The `_fallback` path exists for exactly this. Test on a clean machine with only `uv` installed.
+
+---
+
+### STAGE S2 — Real Fixtures: Replace Synthetic SARIF
+> **Why before 10.2:** The dedup engine will be tested against fixtures. If fixtures are synthetic they will silently drift from reality. Real fixtures first, then dedup on top.
+
+**S2.1 — `scripts/record_fixtures.py`**
+- Script that runs each of the 10 tools (where installable via `pip`/`npx`/`cargo`) against a controlled test repo (`tests/fixtures/target_repo/`) and records the raw output to `tests/fixtures/ingest/<tool>/real_output.json` or `.sarif`.
+- Redact any secrets or paths before committing.
+- **Tools that can be recorded locally:** `Trivy` (Docker), `Prowler` (pip), `Semgrep` (pip), `ModelAudit` (pip). Others (MCPiranha, mcp-tool-auditor) get documented stubs with the recorded schema version and a dated TODO.
+- **Exit gate:** At least 4 of 10 adapters validated against real recorded output. `tests/fixtures/ingest/README.md` updated with per-tool status.
+
+**S2.2 — Adapter schema version pinning**
+- Each adapter records `tool_version` in the fixture metadata. CI fails if the tool version changes without a matching fixture update. Prevents silent adapter drift.
+
+---
+
+### STAGE S3 — Local Scan UX: Make the Wedge Frictionless
+> **Why:** `tensorguard scan --local --path .` is the realistic entry point for 95% of potential users (ML engineers, not cloud admins). It needs to be near-instant, visually clear, and produce zero false positives on a clean repo.
+
+**S3.1 — Demo repo (`tests/demo_targets/`)**
+- Add a small deliberately-vulnerable fake repo: a pickle file with a benign `__reduce__`, an `mcp.json` with an unpinned `npx` server, and a `.env` with a fake `OPENAI_API_KEY`. Used as the `--demo` target and for `record_fixtures.py`.
+- Ensures `tensorguard scan --local --path tests/demo_targets/` always produces at least 3 CRITICAL findings that match the README's "aha moment" description.
+
+**S3.2 — Output quality pass**
+- Review every `Finding.message` and `remediation` field for clarity. A first-time user reading the console output must immediately understand: what's wrong, why it matters, how to fix it. No jargon, no internal rule IDs without explanation.
+- **Exit gate:** 3 external reviewers (or a fresh read-through) confirm every finding message is actionable without reading docs.
+
+**S3.3 — `tensorguard doctor` without AWS**
+- Currently `tensorguard doctor` checks AWS credentials. Add a `--local` mode that checks: Python version, Rust extension installed (or warns fallback active), `uv` installed, `mcp.json` found/not found, model files found/not found. Gives users a preflight check before scanning.
+
+---
+
+### Phase 10.2 — Rust Dedup Engine
+> Start this only after S1 (PyPI) is live. Building dedup without users means building for a problem you haven't validated.
+
+- `rust/tensorguard-core/src/dedup.rs`: `FindingIndex` with `HashMap<String, Vec<NormalizedFinding>>` (SipHash-1-3 for untrusted string keys, ADR-026). `NodeMap` with `FxHashMap<u32, NodeIndex<u32>>` for internal trusted indices only.
+- Deterministic `(component_hash | rule_or_cwe | location)` merge key. Sort merged output before returning. `sources: [tool_a, tool_b, tool_c]` on merged findings.
+- Python wrapper `ai_spm/ingest/dedup.py`.
+- **Exit gate:** 3 tools reporting the same MCP server → 1 entity; ≤5ms on 200 findings; collision benchmark.
+
+### Phase 10.3 — Correlation Graph
+- `petgraph DiGraph<u32>` with `skill` node type and `model→model` edges (ADR-043 schema: `schema: 1`).
+- Python wrapper `ai_spm/ingest/graph.py`.
+- **Exit gate:** golden graph test with known topology; schema frozen before tests.
+
+### Phase 10.4 — Reachability BFS
+- Blast-radius scoring via BFS + predecessor path. `R3` data-store reachability first, then `R2` skill/agent/model-handoff.
+- **Exit gate:** ≥5× raw→reachable finding reduction on the demo target repo. If not met, publish negative result.
+
+### Phase 10.5 — Wedge-A Prioritization
+- Cross-tool severity fusion. Findings that appear in ≥2 tools get severity boosted by one level. Findings only in one tool and not reachable get suppressed to `INFO`.
+- **Exit gate:** 50%+ precision on a held-out labeled finding set. If not met, publish negative result.
+
+### Phase 10.6 — Benchmark & Falsification
+- End-to-end benchmark: `200 raw findings → N reachable` measured on 3 target environments.
+- **Commitment:** if reduction <5× or precision <50%, publish the negative result in `docs/benchmark.md` and do not claim the feature works.
+
+---
+
+### Phase 11 — Model Signing & Post-Quantum (Planned)
+- Signing-profile audit: reject randomized-mode ML-DSA `rnd != 0^256` (subliminal channel mitigation, ADR post-Phase 9 research finding).
+- GGUF verifiability manifest & per-tensor re-derivation, OMS/Sigstore integration, AISVS mapping.
+- **Prerequisite:** Phase S1 (PyPI) + 10.2–10.4 complete.
+
+### Phase 12 — Agent Skill Supply Chain (Planned)
+- Skill registry collector (ClawHub/OpenClaw/MCP catalogs), MinHash LSH near-duplicate campaign detection, `OWASP AST02` mapping.
+
+### Phase 13 — Compliance Evidence Export (Planned, deadline 2027-12-02)
+- `frameworks.yaml` mapping to EU AI Act Art. 15 / Reg. (EU) 2026/1744, NIST AI 600-1, ISO/IEC 42001.
+- Signed tamper-evident evidence packs and GRC JSON export.
+- **Hard deadline:** EU AI Act enforcement date — 2 December 2027.
 
 ---
 
