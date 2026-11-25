@@ -48,8 +48,8 @@ pub fn parse_bounded(
     }
 
     let mut de = serde_json::Deserializer::from_slice(bytes);
-    let mut de = serde_stacker::Deserializer::new(&mut de);
-    serde::Deserialize::deserialize(&mut de).map_err(|e| ScanError::Malformed {
+    let de = serde_stacker::Deserializer::new(&mut de);
+    serde::Deserialize::deserialize(de).map_err(|e| ScanError::Malformed {
         format: "json",
         offset: e.line() as u64,
         reason: e.to_string(),

@@ -9,7 +9,10 @@ logger = logging.getLogger("ai_spm.core_loader")
 HAS_RUST: bool
 
 try:
-    from ai_spm import _tg_core as _native  # type: ignore[attr-defined]
+    try:
+        from ai_spm import _tg_core as _native  # type: ignore[attr-defined]
+    except ImportError:
+        import _tg_core as _native  # type: ignore[import-not-found]
 
     def parse_json_bounded(
         data: bytes,

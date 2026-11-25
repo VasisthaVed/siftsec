@@ -1,0 +1,26 @@
+name: rust-gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust-test-and-geiger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.88"
+      - name: Run cargo test --release
+        working-directory: rust/tensorguard-core
+        run: cargo test --release
+      - name: Check licenses & advisories (cargo-deny, ADR-035)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: rust/tensorguard-core/Cargo.toml
+      - name: Check own-code unsafe (cargo-geiger, ADR-036)
+        # DISABLED until check_geiger.py threshold script is wired in 10.2
+        if: false
+        run: cargo geiger --output-format Json --manifest-path rust/tensorguard-core/Cargo.toml

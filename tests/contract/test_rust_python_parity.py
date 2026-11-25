@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from ai_spm._core_loader import HAS_RUST, parse_json_bounded
 from ai_spm._fallback.json_stream import parse_json_bounded as py_parse_json_bounded
 
 PARITY_FIXTURES: list[bytes] = [
@@ -20,6 +21,6 @@ def test_fallback_json_stream_parses_valid_fixtures(payload: bytes) -> None:
 @pytest.mark.parametrize("payload", PARITY_FIXTURES)
 def test_rust_python_parity_when_tg_core_compiled(payload: bytes) -> None:
     """ADR-030: Both Rust _tg_core and Python _fallback must produce identical output."""
-    _tg_core: Any = pytest.importorskip("ai_spm._tg_core")
-    rust_raw = _tg_core.parse_json_bounded(payload, 64, 64 * 1024 * 1024)
-    assert json.loads(rust_raw) == py_parse_json_bounded(payload, max_depth=64)
+    assert HAS_RUST is True, "_tg_core extension is not loaded"
+    rust_parsed: Any = parse_json_bounded(payload, max_depth=64)
+    assert rust_parsed == py_parse_json_bounded(payload, max_depth=64)

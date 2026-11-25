@@ -1,0 +1,1 @@
+C:\Pro\PROJECT\AI-SPM\rust\tensorguard-core\target\release\_tg_core.dll: C:\Pro\PROJECT\AI-SPM\rust\tensorguard-core\src\error.rs C:\Pro\PROJECT\AI-SPM\rust\tensorguard-core\src\json_stream.rs C:\Pro\PROJECT\AI-SPM\rust\tensorguard-core\src\lib.rs
