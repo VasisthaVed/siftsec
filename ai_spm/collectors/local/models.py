@@ -37,7 +37,8 @@ def _extract_provenance(path: Path) -> tuple[str | None, str | None, str | None]
     cfg_path = parent / "config.json"
     if cfg_path.is_file() and not cfg_path.is_symlink():
         try:
-            data = json.loads(cfg_path.read_text(encoding="utf-8")[:65536])
+            with cfg_path.open("r", encoding="utf-8", errors="ignore") as f:
+                data = json.loads(f.read(65536))
             if isinstance(data, dict) and isinstance(data.get("license"), str):
                 license_id = data["license"].strip()
         except (OSError, ValueError):
@@ -47,7 +48,8 @@ def _extract_provenance(path: Path) -> tuple[str | None, str | None, str | None]
         readme = parent / "README.md"
         if readme.is_file() and not readme.is_symlink():
             try:
-                head = readme.read_text(encoding="utf-8", errors="ignore")[:8192]
+                with readme.open("r", encoding="utf-8", errors="ignore") as f:
+                    head = f.read(8192)
                 lm = _README_LICENSE_RE.search(head)
                 if lm:
                     license_id = lm.group(1).strip()

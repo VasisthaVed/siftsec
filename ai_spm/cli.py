@@ -250,7 +250,7 @@ def scan(
             atomic_write_secure(output, out_text, force=force)
             err_console.print(f"[green]Report saved to {output}[/]")
         elif payload:
-            out_console.print(payload)
+            out_console.print(payload, soft_wrap=True)
 
         code = exit_code(
             findings,
