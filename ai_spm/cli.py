@@ -263,6 +263,20 @@ def doctor(
     out_console.print(f" • Python: {sys.version.split()[0]}")
     out_console.print(f" • Registered rules: {len(registry.get_rules())}")
 
+    import importlib.util
+
+    k8s_ready = importlib.util.find_spec("kubernetes") is not None
+    gcp_ready = (
+        importlib.util.find_spec("google") is not None
+        and importlib.util.find_spec("google.cloud.storage") is not None
+    )
+    out_console.print(
+        f" • Optional K8s extra: {'[green]installed[/]' if k8s_ready else '[yellow]not installed (tensorguard[k8s])[/]'}"
+    )
+    out_console.print(
+        f" • Optional GCP extra: {'[green]installed[/]' if gcp_ready else '[yellow]not installed (tensorguard[gcp])[/]'}"
+    )
+
     try:
         session = boto3.Session(profile_name=profile) if profile else boto3.Session()
         factory = AwsClientFactory(session, settings)

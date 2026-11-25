@@ -87,13 +87,13 @@ class GcpCollector(BaseCollector):
     def collect(self) -> list[CloudResource]:
         return self.collect_with_gaps(ScanContext(regions=self.regions)).resources
 
-    def collect_with_gaps(self, ctx: ScanContext) -> CollectorResult:
-        project = self.project_id or ctx.gcp_project or "default-project"
-        regions = ctx.regions or self.regions
-        resources: list[CloudResource] = []
-        gaps: list[CoverageGap] = []
-
-        # 1. GCS model/dataset buckets
+    def _collect_gcs_buckets(
+        self,
+        project: str,
+        ctx: ScanContext,
+        resources: list[CloudResource],
+        gaps: list[CoverageGap],
+    ) -> None:
         storage_client = self._init_storage()
         try:
             for bucket in storage_client.list_buckets(project=project):
@@ -144,8 +144,31 @@ class GcpCollector(BaseCollector):
             else:
                 raise
 
+    def collect_with_gaps(self, ctx: ScanContext) -> CollectorResult:
+        project = self.project_id or ctx.gcp_project or "default-project"
+        regions = ctx.regions or self.regions
+        selected = {s.lower() for s in ctx.services} if ctx.services else None
+        resources: list[CloudResource] = []
+        gaps: list[CoverageGap] = []
+
+        # 1. GCS model/dataset buckets
+        if selected is None or "gcp_gcs" in selected:
+            self._collect_gcs_buckets(project, ctx, resources, gaps)
+
         # 2. Vertex AI Workbench instances & Endpoints per region
+        if selected is not None and "gcp_vertex" not in selected:
+            return CollectorResult(resources=resources, coverage_gaps=gaps)
+
         wb_client = self._init_workbench()
+        if wb_client is None:
+            gaps.append(
+                CoverageGap(
+                    service="gcp_vertex",
+                    region="global",
+                    api="notebooks.list_instances",
+                    error_code="MissingDependency",
+                )
+            )
         for region in regions:
             parent = f"projects/{project}/locations/{region}"
             if wb_client is not None:
@@ -208,6 +231,15 @@ class GcpCollector(BaseCollector):
                         raise
 
             ep_client = self._init_endpoint(region)
+            if ep_client is None:
+                gaps.append(
+                    CoverageGap(
+                        service="gcp_vertex",
+                        region=region,
+                        api="aiplatform.list_endpoints",
+                        error_code="MissingDependency",
+                    )
+                )
             if ep_client is not None:
                 try:
                     for ep in ep_client.list_endpoints(parent=parent):

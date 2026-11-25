@@ -159,7 +159,9 @@ class K8sCollector(BaseCollector):
             status = getattr(node, "status", None)
             node_name = str(getattr(meta, "name", "unknown"))
             labels = dict(getattr(meta, "labels", None) or {})
-            cap = dict(getattr(status, "capacity", None) or {})
+            cap = dict(
+                getattr(status, "capacity", None) or getattr(status, "allocatable", None) or {}
+            )
             try:
                 gpu_cap = int(cap.get("nvidia.com/gpu", 0))
             except (ValueError, TypeError):
@@ -167,11 +169,9 @@ class K8sCollector(BaseCollector):
             if gpu_cap <= 0:
                 continue
 
-            tk_ver = labels.get("nvidia.com/cuda.driver.major")
             tk_label_ver = (
                 labels.get("nvidia.com/container-toolkit.version") or operator_toolkit_ver
             )
-            _ = tk_ver
             n_attrs = K8sNodeAttrs(
                 gpu_capacity=gpu_cap,
                 gpu_product=labels.get("nvidia.com/gpu.product"),
