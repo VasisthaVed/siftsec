@@ -42,3 +42,9 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local AI assistant rules (kept locally, excluded from Git)
+AGENTS.md
+GEMINI.md
+.agents/
+.agent/
