@@ -235,3 +235,27 @@ class EC2SecurityGroupAttrs(BaseModel):
     vpc_id: str | None = None
     attached: bool | None = None
     ingress: list[IngressRule] = Field(default_factory=list)
+
+
+class K8sNodeAttrs(BaseModel):
+    kind: Literal["k8s_node"] = "k8s_node"
+    gpu_capacity: int = 0
+    gpu_product: str | None = None
+    mig_config: str | None = None
+    toolkit_version: str | None = None
+    multi_tenant_gpu_namespaces: int = 0
+
+
+class K8sPodAttrs(BaseModel):
+    kind: Literal["k8s_pod"] = "k8s_pod"
+    namespace: str = "default"
+    node_name: str | None = None
+    privileged: bool = False
+    host_network: bool = False
+    host_pid: bool = False
+    host_paths: list[str] = Field(default_factory=list)
+    gpu_requested: int = 0
+    images: list[str] = Field(default_factory=list)
+    all_images_use_digest: bool = True
+    run_as_non_root: bool | None = None
+    runtime_class_name: str | None = None

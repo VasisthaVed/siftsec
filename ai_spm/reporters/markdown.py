@@ -17,6 +17,8 @@ def escape_md(text: str) -> str:
         ("@", "@\u200b"),
         ("[", "\\["),
         ("]", "\\]"),
+        ("\r", " "),
+        ("\n", " "),
     ):
         out = out.replace(ch, rep)
     return out

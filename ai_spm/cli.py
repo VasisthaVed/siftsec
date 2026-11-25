@@ -1,3 +1,5 @@
+import hashlib
+import json
 import sys
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -13,14 +15,16 @@ from ai_spm import __version__
 from ai_spm.collectors.aws.client import AwsClientFactory, resolve_identity
 from ai_spm.collectors.aws.orchestrator import AwsOrchestrator
 from ai_spm.collectors.base import BaseCollector
+from ai_spm.collectors.k8s import K8sCollector
 from ai_spm.collectors.local.mcp import LocalMcpCollector
 from ai_spm.collectors.local.models import LocalModelCollector
 from ai_spm.collectors.mock import MockCollector
 from ai_spm.config import settings
 from ai_spm.engine.context import ScanContext
-from ai_spm.engine.models import CloudResource, CoverageGap, ScanSummary, Severity
+from ai_spm.engine.models import CloudResource, CoverageGap, ScanSummary, Severity, Status
 from ai_spm.engine.runner import ScanRunner
 from ai_spm.engine.scoring import exit_code, posture_score
+from ai_spm.engine.suppressions import apply_suppressions, load_baseline_fingerprints
 from ai_spm.errors import AISPMError
 from ai_spm.reporters.console import ConsoleReporter
 from ai_spm.reporters.json_rep import JSONReporter
@@ -66,6 +70,54 @@ class _PreCollectedCollector(BaseCollector):
         return self._items
 
 
+def _collect_target_resources(
+    *,
+    demo: bool,
+    local: bool,
+    aws: bool,
+    k8s: bool,
+    path: list[Path],
+    include_hf_cache: bool,
+    kube_context: str | None,
+    profile: str | None,
+    ctx: ScanContext,
+) -> tuple[list[CloudResource], list[CoverageGap]]:
+    """Collect cloud, local, Kubernetes, or demo resources into a unified list."""
+    resources: list[CloudResource] = []
+    coverage_gaps: list[CoverageGap] = []
+
+    if local:
+        for p in path:
+            if not p.exists():
+                raise AISPMError(f"Target path does not exist: {p}")
+        collector: BaseCollector = _CompositeCollector(
+            [
+                LocalModelCollector(paths=path, include_hf_cache=include_hf_cache),
+                LocalMcpCollector(paths=path),
+            ]
+        )
+        resources.extend(collector.collect())
+
+    if aws:
+        session = boto3.Session(profile_name=profile) if profile else boto3.Session()
+        factory = AwsClientFactory(session, settings)
+        col_result = AwsOrchestrator(factory, settings).run(ctx)
+        resources.extend(col_result.resources)
+        coverage_gaps.extend(col_result.coverage_gaps)
+
+    if k8s:
+        resources.extend(K8sCollector(kube_context=kube_context, cfg=settings).collect())
+
+    if not (local or aws or k8s):
+        if not demo:
+            err_console.print(
+                "[yellow]No target specified (--local / --aws / --k8s). Running in --demo mode.[/]"
+            )
+        resources.extend(MockCollector().collect())
+
+    return resources, coverage_gaps
+
+
 @app.command()
 def scan(
     demo: bool = typer.Option(False, "--demo", "-d", help="Run zero-credential demo simulation"),
@@ -73,6 +125,10 @@ def scan(
         False, "--local", "-l", help="Scan local model files and MCP configurations"
     ),
     aws: bool = typer.Option(False, "--aws", help="Scan live AWS environment via Boto3"),
+    k8s: bool = typer.Option(False, "--k8s", help="Scan Kubernetes GPU cluster (read-only)"),
+    kube_context: str | None = typer.Option(
+        None, "--kube-context", help="Kubernetes context name for --k8s"
+    ),
     path: list[Path] = typer.Option(
         [Path(".")], "--path", "-p", help="Local path(s) to scan when --local is enabled"
     ),
@@ -88,6 +144,9 @@ def scan(
     ),
     ai_only: bool = typer.Option(
         True, "--ai-only/--all-resources", help="Filter non-AI cloud resources"
+    ),
+    baseline: Path | None = typer.Option(
+        None, "--baseline", "-b", help="Baseline JSON file of accepted finding fingerprints"
     ),
     fmt: OutputFormat = typer.Option(OutputFormat.console, "--format", "-f", help="Output format"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Output file path"),
@@ -119,32 +178,21 @@ def scan(
             profile=profile,
         )
 
-        coverage_gaps: list[CoverageGap] = []
-        if local:
-            for p in path:
-                if not p.exists():
-                    raise AISPMError(f"Target path does not exist: {p}")
-            collector: BaseCollector = _CompositeCollector(
-                [
-                    LocalModelCollector(paths=path, include_hf_cache=include_hf_cache),
-                    LocalMcpCollector(paths=path),
-                ]
-            )
-            resources = collector.collect()
-        elif aws:
-            session = boto3.Session(profile_name=profile) if profile else boto3.Session()
-            factory = AwsClientFactory(session, settings)
-            col_result = AwsOrchestrator(factory, settings).run(ctx)
-            resources = col_result.resources
-            coverage_gaps = col_result.coverage_gaps
-        else:
-            if not demo:
-                err_console.print(
-                    "[yellow]No target specified (--local / --aws). Running in --demo mode.[/]"
-                )
-            resources = MockCollector().collect()
+        resources, coverage_gaps = _collect_target_resources(
+            demo=demo,
+            local=local,
+            aws=aws,
+            k8s=k8s,
+            path=path,
+            include_hf_cache=include_hf_cache,
+            kube_context=kube_context,
+            profile=profile,
+            ctx=ctx,
+        )
 
-        findings = ScanRunner(collector=_PreCollectedCollector(resources), context=ctx).run()
+        raw_findings = ScanRunner(collector=_PreCollectedCollector(resources), context=ctx).run()
+        baseline_fps = load_baseline_fingerprints(baseline)
+        findings = apply_suppressions(raw_findings, [], baseline_fingerprints=baseline_fps)
         finished_at = datetime.now(UTC)
         summary = ScanSummary(
             total_resources=len(resources),
@@ -234,6 +282,119 @@ def list_rules() -> None:
     out_console.print(f"[bold cyan]Registered AI-SPM Rules ({len(rules)} total):[/]\n")
     for r in rules:
         out_console.print(f" • [bold yellow]{r.rule_id}[/]: [white]{r.title}[/] [{r.severity}]")
+
+
+@app.command("baseline-create")
+def baseline_create(
+    demo: bool = typer.Option(False, "--demo", "-d", help="Create baseline from demo scan"),
+    local: bool = typer.Option(False, "--local", "-l", help="Create baseline from local scan"),
+    aws: bool = typer.Option(False, "--aws", help="Create baseline from AWS scan"),
+    k8s: bool = typer.Option(False, "--k8s", help="Create baseline from Kubernetes GPU scan"),
+    kube_context: str | None = typer.Option(None, "--kube-context", help="Kubernetes context"),
+    path: list[Path] = typer.Option([Path(".")], "--path", "-p", help="Local path(s) to scan"),
+    regions: str = typer.Option("us-east-1", "--regions", "-r", help="AWS regions"),
+    profile: str | None = typer.Option(None, "--profile", help="AWS CLI named profile"),
+    output: Path = typer.Option(
+        Path(".tensorguard-baseline.json"),
+        "--output",
+        "-o",
+        help="Destination baseline file path",
+    ),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing baseline file"),
+) -> None:
+    """Snapshot current FAILED finding fingerprints into an accepted baseline file."""
+    configure_logging()
+    try:
+        ctx = ScanContext(
+            regions=[r.strip() for r in regions.split(",") if r.strip()],
+            profile=profile,
+        )
+        resources, _ = _collect_target_resources(
+            demo=demo,
+            local=local,
+            aws=aws,
+            k8s=k8s,
+            path=path,
+            include_hf_cache=False,
+            kube_context=kube_context,
+            profile=profile,
+            ctx=ctx,
+        )
+        findings = ScanRunner(collector=_PreCollectedCollector(resources), context=ctx).run()
+        fingerprints = sorted({f.fingerprint for f in findings if f.status == Status.FAILED})
+        payload = json.dumps(
+            {
+                "version": 1,
+                "generated_at": datetime.now(UTC).isoformat(),
+                "fingerprints": fingerprints,
+            },
+            indent=2,
+        )
+        atomic_write_secure(output, payload, force=force)
+        out_console.print(
+            f"[green]Baseline saved to {output}[/] ({len(fingerprints)} fingerprints)"
+        )
+    except AISPMError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(code=exc.exit_code) from exc
+
+
+@app.command("mcp-lock")
+def mcp_lock(
+    path: list[Path] = typer.Option(
+        [Path(".")], "--path", "-p", help="Local path(s) to inspect for MCP configs"
+    ),
+    output: Path = typer.Option(
+        Path(".tensorguard-lock.json"),
+        "--output",
+        "-o",
+        help="Destination MCP lockfile path",
+    ),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing lockfile"),
+) -> None:
+    """Generate a SHA-256 integrity lockfile for discovered MCP server definitions."""
+    configure_logging()
+    try:
+        for p in path:
+            if not p.exists():
+                raise AISPMError(f"Target path does not exist: {p}")
+        resources = LocalMcpCollector(paths=path).collect()
+        locked_servers: list[dict[str, str]] = []
+        for res in sorted(resources, key=lambda r: r.arn):
+            canonical = json.dumps(
+                {
+                    "server_name": res.name,
+                    "command": res.metadata.get("command"),
+                    "args": res.metadata.get("args", []),
+                    "env_keys": sorted(str(k) for k in res.metadata.get("env_keys", [])),
+                    "url": res.metadata.get("url"),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+            locked_servers.append(
+                {
+                    "resource_id": res.arn,
+                    "server_name": res.name,
+                    "sha256": digest,
+                }
+            )
+        payload = json.dumps(
+            {
+                "version": 1,
+                "generated_at": datetime.now(UTC).isoformat(),
+                "servers": locked_servers,
+            },
+            indent=2,
+        )
+        atomic_write_secure(output, payload, force=force)
+        out_console.print(
+            f"[green]MCP lockfile saved to {output}[/] ({len(locked_servers)} servers)"
+        )
+    except AISPMError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(code=exc.exit_code) from exc
 
 
 @app.command("version")
