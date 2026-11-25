@@ -1,8 +1,11 @@
 import hashlib
+import importlib.util
 import json
 import sys
+import time
 from datetime import UTC, datetime
 from enum import StrEnum
+from importlib.metadata import entry_points
 from pathlib import Path
 
 import boto3
@@ -33,6 +36,7 @@ from ai_spm.reporters.json_rep import JSONReporter
 from ai_spm.reporters.markdown import MarkdownReporter
 from ai_spm.reporters.sarif import SARIFReporter
 from ai_spm.rules.registry import registry
+from ai_spm.utils.debug_bundle import write_debug_bundle
 from ai_spm.utils.fs import atomic_write_secure
 from ai_spm.utils.logger import configure_logging
 
@@ -184,10 +188,19 @@ def scan(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose debug logging"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Show only errors in logs"),
+    log_json: bool = typer.Option(False, "--log-json", help="Emit structured JSON logs to stderr"),
+    timings: bool = typer.Option(False, "--timings", help="Print per-phase timings to stderr"),
+    debug_bundle: Path | None = typer.Option(
+        None, "--debug-bundle", help="Write redacted diagnostics zip to PATH"
+    ),
+    no_plugins: bool = typer.Option(
+        False, "--no-plugins", help="Disable external entry-point rule/collector plugins"
+    ),
 ) -> None:
     """Scan AI/ML workloads for security posture and threat misconfigurations."""
-    configure_logging(verbose=verbose, quiet=quiet)
+    configure_logging(verbose=verbose, quiet=quiet, json_logs=log_json)
     started_at = datetime.now(UTC)
+    _ = no_plugins  # Reserved for runtime plugin opt-out before dynamic discovery.
 
     try:
         selected_services = [s.strip() for s in services.split(",")] if services else None
@@ -201,6 +214,7 @@ def scan(
             gcp_project=gcp_project,
         )
 
+        t0 = time.perf_counter()
         resources, coverage_gaps = _collect_target_resources(
             demo=demo,
             local=local,
@@ -214,10 +228,30 @@ def scan(
             profile=profile,
             ctx=ctx,
         )
+        t_collect = time.perf_counter() - t0
 
+        t1 = time.perf_counter()
         raw_findings = ScanRunner(collector=_PreCollectedCollector(resources), context=ctx).run()
+        t_eval = time.perf_counter() - t1
         baseline_fps = load_baseline_fingerprints(baseline)
         findings = apply_suppressions(raw_findings, [], baseline_fingerprints=baseline_fps)
+        phase_timings = {
+            "collect_seconds": round(t_collect, 4),
+            "evaluate_seconds": round(t_eval, 4),
+        }
+        if timings:
+            err_console.print(
+                f"[dim]Timings: collect={phase_timings['collect_seconds']}s "
+                f"evaluate={phase_timings['evaluate_seconds']}s[/]"
+            )
+        if debug_bundle is not None:
+            write_debug_bundle(
+                debug_bundle,
+                cfg=settings,
+                coverage_gaps=coverage_gaps,
+                timings=phase_timings,
+            )
+            err_console.print(f"[green]Debug bundle saved to {debug_bundle}[/]")
         finished_at = datetime.now(UTC)
         summary = ScanSummary(
             total_resources=len(resources),
@@ -275,8 +309,6 @@ def doctor(
     out_console.print(f"[bold cyan]TensorGuard Doctor[/] (v{__version__})")
     out_console.print(f" • Python: {sys.version.split()[0]}")
     out_console.print(f" • Registered rules: {len(registry.get_rules())}")
-
-    import importlib.util
 
     k8s_ready = importlib.util.find_spec("kubernetes") is not None
     gcp_ready = (
@@ -443,6 +475,18 @@ def mcp_lock(
     except AISPMError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(code=exc.exit_code) from exc
+
+
+@app.command("plugins")
+def list_plugins() -> None:
+    """List external entry-point rule and collector plugins."""
+    found = False
+    for group in ("ai_spm.rules", "ai_spm.collectors"):
+        for ep in entry_points(group=group):
+            found = True
+            out_console.print(f" • [{group}] {ep.name} -> {ep.value}")
+    if not found:
+        out_console.print("No external TensorGuard plugins installed.")
 
 
 @app.command("version")
