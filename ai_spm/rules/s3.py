@@ -134,6 +134,13 @@ class S3DatasetVersioningRule(BaseRule):
     owasp_llm = ["LLM05:2026"]
 
     def evaluate(self, resource: CloudResource) -> Finding:
+        is_dataset = (
+            "dataset" in resource.name.lower() or resource.tags.get("data", "").lower() == "dataset"
+        )
+        if not is_dataset:
+            return self.skipped(
+                resource, f"Bucket '{resource.name}' is not tagged/named as a dataset."
+            )
         ver = resource.metadata.get("versioning")
         if ver == "Enabled":
             return self.passed(

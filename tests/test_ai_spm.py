@@ -139,6 +139,9 @@ def test_cli_list_rules() -> None:
 
 
 def test_cli_scan_demo() -> None:
+    findings = ScanRunner(collector=MockCollector()).run()
+    assert not any(f.status is Status.ERROR for f in findings)
+
     result = runner.invoke(app, ["scan", "--demo", "--fail-on", "CRITICAL"])
     assert result.exit_code == 1
     assert "AI Security Posture Score" in result.output

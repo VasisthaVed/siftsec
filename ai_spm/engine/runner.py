@@ -40,6 +40,12 @@ class ScanRunner:
                     and resource.kind not in rule.resource_kinds
                 ):
                     continue
+                if (
+                    rule.resource_kinds
+                    and resource.kind
+                    and resource.kind not in rule.resource_kinds
+                ):
+                    continue
                 missing = [attr for attr in rule.required_attrs if attr in resource.gaps]
                 if missing:
                     # Unknown != fail: surface unreadable attributes as ERROR findings (D-08).

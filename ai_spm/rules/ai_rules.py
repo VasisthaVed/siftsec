@@ -13,6 +13,7 @@ class SageMakerDirectInternetAccessRule(BaseRule):
     severity = Severity.HIGH
     service = "sagemaker"
     resource_kinds = frozenset({"sagemaker_notebook"})
+    required_attrs = ("describe",)
     mitre_atlas = ["AML.T0044"]
     owasp_llm = ["LLM02:2026"]
 
@@ -40,6 +41,7 @@ class BedrockGuardrailsRule(BaseRule):
     severity = Severity.HIGH
     service = "bedrock"
     resource_kinds = frozenset({"bedrock_agent"})
+    required_attrs = ("describe",)
     mitre_atlas = []
     owasp_llm = ["LLM01:2026", "LLM03:2026"]
     nist_ai_rmf = ["MG-3.1"]
@@ -71,7 +73,7 @@ class OpenSearchVectorPublicAccessRule(BaseRule):
     )
     severity = Severity.CRITICAL
     service = "opensearch"
-    resource_kinds = frozenset({"opensearch_domain", "opensearch_serverless"})
+    resource_kinds = frozenset({"opensearch_domain"})
     mitre_atlas = ["AML.T0044"]
     owasp_llm = ["LLM02:2026", "LLM09:2026"]
 
@@ -99,6 +101,7 @@ class IAMWildcardPermissionsRule(BaseRule):
     severity = Severity.HIGH
     service = "iam"
     resource_kinds = frozenset({"iam_role"})
+    required_attrs = ("role",)
     mitre_atlas = []
     owasp_llm = ["LLM03:2026", "ASI05"]
 
