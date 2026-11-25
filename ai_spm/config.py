@@ -79,6 +79,12 @@ class AISPMConfig(BaseSettings):
     max_local_files: int = Field(default=10_000, ge=1)
     max_workers: int = Field(default=8, ge=1, le=64)
 
+    # AWS Boto3 resilience & sampling tunables (Phase 2)
+    boto_max_attempts: int = Field(default=5, ge=1, le=10)
+    boto_connect_timeout_s: float = Field(default=5.0, gt=0.0)
+    boto_read_timeout_s: float = Field(default=30.0, gt=0.0)
+    s3_key_sample_size: int = Field(default=200, ge=1, le=1000)
+
     # Local MCP & injection heuristics (ADR-005)
     local_mcp_paths: list[str] = Field(
         default_factory=lambda: [
@@ -116,7 +122,25 @@ class AISPMConfig(BaseSettings):
         }
     )
 
-    # AI workload classification tags
+    # AI workload classification tags & heuristics
+    ai_inherent_services: frozenset[str] = Field(
+        default_factory=lambda: frozenset({"sagemaker", "bedrock"})
+    )
+    ai_name_patterns: dict[str, list[str]] = Field(
+        default_factory=lambda: {
+            "s3": [
+                r"\bmodel\b",
+                r"\bweights\b",
+                r"\bcheckpoint\b",
+                r"\bdataset\b",
+                r"\bbedrock\b",
+                r"\bsagemaker\b",
+                r"\brag\b",
+            ],
+            "ecr": [r"\btorch\b", r"\bvllm\b", r"\btgi\b", r"\bsagemaker\b", r"\binference\b"],
+            "opensearch": [r"\bvector\b", r"\brag\b", r"\bembedding\b"],
+        }
+    )
     ai_workload_tags: dict[str, list[str]] = Field(
         default_factory=lambda: {
             "workload": ["ai", "ml", "llm", "rag", "genai"],

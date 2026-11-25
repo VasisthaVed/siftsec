@@ -61,3 +61,41 @@ class McpServerAttrs(BaseModel):
     suspicious_blobs: list[str] = Field(default_factory=list)
     insecure_transport: bool = False
     pipe_to_shell: bool = False
+
+
+class PublicAccessBlock(BaseModel):
+    """Normalized S3 Public Access Block booleans."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    block_public_acls: bool = False
+    ignore_public_acls: bool = False
+    block_public_policy: bool = False
+    restrict_public_buckets: bool = False
+
+    @property
+    def all_enabled(self) -> bool:
+        return (
+            self.block_public_acls
+            and self.ignore_public_acls
+            and self.block_public_policy
+            and self.restrict_public_buckets
+        )
+
+
+class S3BucketAttrs(BaseModel):
+    """Normalized metadata for an AWS S3 bucket."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["s3_bucket"] = "s3_bucket"
+    sse_algorithm: Literal["AES256", "aws:kms", "aws:kms:dsse"] | None = None
+    kms_key_arn: str | None = None
+    kms_key_is_cmk: bool | None = None
+    public_access_block: PublicAccessBlock | None = None
+    pab_absent: bool | None = None
+    account_pab_all_enabled: bool | None = None
+    is_public_by_policy: bool | None = None
+    versioning: Literal["Enabled", "Suspended", "Disabled"] | None = None
+    sampled_keys: list[str] = Field(default_factory=list)
+    model_extension_counts: dict[str, int] = Field(default_factory=dict)
