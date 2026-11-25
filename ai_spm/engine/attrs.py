@@ -39,6 +39,10 @@ class LocalModelFileAttrs(BaseModel):
     scan_error: str | None = None
     zip_ratio_exceeded: bool = False
     safetensors_header_ok: bool | None = None
+    source: str | None = None
+    revision: str | None = None
+    license_id: str | None = None
+    allowlist_match: bool | None = None
 
 
 class McpServerAttrs(BaseModel):

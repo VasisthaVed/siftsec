@@ -27,6 +27,7 @@ from ai_spm.engine.runner import ScanRunner
 from ai_spm.engine.scoring import exit_code, posture_score
 from ai_spm.engine.suppressions import apply_suppressions, load_baseline_fingerprints
 from ai_spm.errors import AISPMError
+from ai_spm.reporters.aibom import AIBOMReporter
 from ai_spm.reporters.console import ConsoleReporter
 from ai_spm.reporters.json_rep import JSONReporter
 from ai_spm.reporters.markdown import MarkdownReporter
@@ -50,6 +51,11 @@ class OutputFormat(StrEnum):
     json = "json"
     sarif = "sarif"
     markdown = "markdown"
+
+
+class SbomFormat(StrEnum):
+    cyclonedx = "cyclonedx"
+    spdx = "spdx"
 
 
 class _CompositeCollector(BaseCollector):
@@ -162,6 +168,9 @@ def scan(
         None, "--baseline", "-b", help="Baseline JSON file of accepted finding fingerprints"
     ),
     fmt: OutputFormat = typer.Option(OutputFormat.console, "--format", "-f", help="Output format"),
+    sbom: SbomFormat | None = typer.Option(
+        None, "--sbom", help="Emit AI Bill of Materials (cyclonedx or spdx)"
+    ),
     output: Path | None = typer.Option(None, "--output", "-o", help="Output file path"),
     sarif: bool = typer.Option(False, "--sarif", help="Shortcut for --format sarif"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing output file"),
@@ -222,7 +231,11 @@ def scan(
         )
 
         active_fmt = OutputFormat.sarif if sarif else fmt
-        if active_fmt is OutputFormat.json:
+        if sbom is SbomFormat.cyclonedx:
+            payload = AIBOMReporter().export_cyclonedx(resources)
+        elif sbom is SbomFormat.spdx:
+            payload = AIBOMReporter().export_spdx(resources)
+        elif active_fmt is OutputFormat.json:
             payload = JSONReporter().export(summary)
         elif active_fmt is OutputFormat.sarif:
             payload = SARIFReporter().export(findings)

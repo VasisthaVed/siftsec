@@ -1,7 +1,9 @@
 """Local model artifact collector using iterative, symlink-safe traversal."""
 
 import hashlib
+import json
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -12,6 +14,67 @@ from ai_spm.engine.models import CloudProvider, CloudResource
 from ai_spm.scanners.pickle_scanner import scan_model_file, sniff_model_format
 
 _SKIP_DIRS = frozenset({".git", "node_modules", ".venv", "__pycache__", ".mypy_cache"})
+_HF_MODEL_DIR_RE = re.compile(r"^models--([^/\\]+)--([^/\\]+)$")
+_README_LICENSE_RE = re.compile(r"^license:\s*([A-Za-z0-9._-]+)", re.MULTILINE | re.IGNORECASE)
+
+
+def _extract_provenance(path: Path) -> tuple[str | None, str | None, str | None]:
+    """Extract offline HuggingFace repo/commit/license metadata if present."""
+    source: str | None = None
+    revision: str | None = None
+    license_id: str | None = None
+
+    parts = path.parts
+    for idx, part in enumerate(parts):
+        m = _HF_MODEL_DIR_RE.match(part)
+        if m:
+            source = f"hf://{m.group(1)}/{m.group(2)}"
+            if idx + 2 < len(parts) and parts[idx + 1] == "snapshots":
+                revision = parts[idx + 2]
+            break
+
+    parent = path.parent
+    cfg_path = parent / "config.json"
+    if cfg_path.is_file() and not cfg_path.is_symlink():
+        try:
+            data = json.loads(cfg_path.read_text(encoding="utf-8")[:65536])
+            if isinstance(data, dict) and isinstance(data.get("license"), str):
+                license_id = data["license"].strip()
+        except (OSError, ValueError):
+            pass
+
+    if not license_id:
+        readme = parent / "README.md"
+        if readme.is_file() and not readme.is_symlink():
+            try:
+                head = readme.read_text(encoding="utf-8", errors="ignore")[:8192]
+                lm = _README_LICENSE_RE.search(head)
+                if lm:
+                    license_id = lm.group(1).strip()
+            except OSError:
+                pass
+
+    return source, revision, license_id
+
+
+def _load_model_allowlist(paths: list[Path]) -> set[str] | None:
+    """Load approved SHA-256 digests from .tensorguard-models.lock if present."""
+    digests: set[str] = set()
+    found = False
+    for base in paths:
+        lock = (base if base.is_dir() else base.parent) / ".tensorguard-models.lock"
+        if lock.is_file() and not lock.is_symlink():
+            found = True
+            try:
+                raw = json.loads(lock.read_text(encoding="utf-8"))
+                for item in raw.get("models", []):
+                    if isinstance(item, dict) and isinstance(item.get("sha256"), str):
+                        digests.add(item["sha256"].lower())
+                    elif isinstance(item, str):
+                        digests.add(item.lower())
+            except (OSError, ValueError):
+                pass
+    return digests if found else None
 
 
 class LocalModelCollector(BaseCollector):
@@ -69,13 +132,25 @@ class LocalModelCollector(BaseCollector):
 
         return discovered
 
-    def _scan_one(self, path: Path) -> CloudResource:
+    def _scan_one(self, path: Path, allowlist: set[str] | None = None) -> CloudResource:
         abs_str = str(path.resolve())
         arn_hash = hashlib.sha256(abs_str.encode()).hexdigest()[:16]
         arn = f"local://file/{arn_hash}"
 
         try:
             attrs = scan_model_file(path, self.cfg)
+            source, revision, license_id = _extract_provenance(path)
+            allowlist_match: bool | None = None
+            if allowlist is not None and attrs.sha256:
+                allowlist_match = attrs.sha256.lower() in allowlist
+            enriched = attrs.model_copy(
+                update={
+                    "source": source,
+                    "revision": revision,
+                    "license_id": license_id,
+                    "allowlist_match": allowlist_match,
+                }
+            )
             return CloudResource(
                 arn=arn,
                 id=path.name,
@@ -87,7 +162,7 @@ class LocalModelCollector(BaseCollector):
                 account_id="local",
                 is_ai_workload=True,
                 ai_reason="local model file",
-                metadata=attrs.model_dump(),
+                metadata=enriched.model_dump(),
             )
         except OSError as exc:
             fallback = LocalModelFileAttrs(
@@ -115,5 +190,6 @@ class LocalModelCollector(BaseCollector):
         files = self._discover_model_files()
         if not files:
             return []
+        allowlist = _load_model_allowlist(self.paths)
         with ThreadPoolExecutor(max_workers=self.cfg.max_workers) as pool:
-            return list(pool.map(self._scan_one, files))
+            return list(pool.map(lambda p: self._scan_one(p, allowlist), files))
