@@ -1,0 +1,24 @@
+name: wheels
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build_wheels:
+    name: Build abi3-py312 wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.80"
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --strip --manifest-path rust/tensorguard-core/Cargo.toml --out dist
+          manylinux: auto

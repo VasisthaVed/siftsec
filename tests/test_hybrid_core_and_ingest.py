@@ -4,7 +4,7 @@ import pytest
 
 from ai_spm._core_loader import HAS_RUST, parse_json_bounded
 from ai_spm.engine.models import Severity
-from ai_spm.ingest import ingest_sarif_bytes
+from ai_spm.ingest import ingest_json_bytes, ingest_sarif_bytes
 
 
 @pytest.mark.parametrize(
@@ -82,3 +82,104 @@ def test_sarif_ingest_adapter_normalizes_modelaudit_and_mcpiranha() -> None:
     assert findings[1].asset_kind == "mcp_server"
     assert findings[1].asset_id == "mcp://filesystem"
     assert findings[1].severity == Severity.MEDIUM
+
+
+def test_sarif_and_json_adapters_cover_prowler_trivy_skill_and_mcpvuln() -> None:
+    sarif_extra = {
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {"driver": {"name": "Trivy"}},
+                "results": [
+                    {
+                        "ruleId": "CVE-2025-1",
+                        "level": "note",
+                        "message": {"text": "Container vuln"},
+                        "locations": [
+                            {"physicalLocation": {"artifactLocation": {"uri": "Dockerfile"}}}
+                        ],
+                    }
+                ],
+            },
+            {
+                "tool": {"driver": {"name": "ClawHub"}},
+                "results": [
+                    {
+                        "ruleId": "SKILL-001",
+                        "level": "error",
+                        "message": {"text": "Malicious SKILL.md"},
+                        "locations": [
+                            {"physicalLocation": {"artifactLocation": {"uri": "skills/SKILL.md"}}}
+                        ],
+                    }
+                ],
+            },
+            {
+                "tool": {"driver": {"name": "Prowler"}},
+                "results": [
+                    {
+                        "ruleId": "s3_bucket_public",
+                        "level": "error",
+                        "message": {"text": "Public bucket"},
+                    }
+                ],
+            },
+            {
+                "tool": {"driver": {"name": "Semgrep"}},
+                "results": [
+                    {
+                        "ruleId": "py-eval",
+                        "level": "warning",
+                        "message": {"text": "eval()"},
+                    }
+                ],
+            },
+        ],
+    }
+    sarif_findings = ingest_sarif_bytes(json.dumps(sarif_extra).encode("utf-8"))
+    assert [f.asset_kind for f in sarif_findings] == [
+        "container",
+        "skill",
+        "cloud_resource",
+        "code",
+    ]
+
+    with pytest.raises(ValueError, match="SARIF root"):
+        ingest_sarif_bytes(b"[]")
+    with pytest.raises(ValueError, match="runs"):
+        ingest_sarif_bytes(b"{}")
+
+    prowler_json = json.dumps(
+        [
+            {"CheckID": "s3_pass", "Status": "PASS", "Severity": "low", "ResourceArn": "arn:ok"},
+            {
+                "CheckID": "s3_public",
+                "Status": "FAIL",
+                "Severity": "critical",
+                "ResourceArn": "arn:aws:s3:::ai-weights",
+                "StatusExtended": "Bucket is public",
+            },
+        ]
+    ).encode("utf-8")
+    p_findings = ingest_json_bytes(prowler_json, source_tool="Prowler")
+    assert len(p_findings) == 1
+    assert p_findings[0].severity == Severity.CRITICAL
+    assert p_findings[0].asset_kind == "cloud_resource"
+
+    mcpvuln_json = json.dumps(
+        {
+            "vulnerabilities": [
+                {
+                    "id": "MCPV-1",
+                    "severity": "high",
+                    "server": "github-mcp",
+                    "description": "Token leak",
+                    "sha256": "deadbeef",
+                }
+            ]
+        }
+    ).encode("utf-8")
+    m_findings = ingest_json_bytes(mcpvuln_json, source_tool="mcpvuln")
+    assert len(m_findings) == 1
+    assert m_findings[0].asset_kind == "mcp_server"
+    assert m_findings[0].component_hash == "deadbeef"

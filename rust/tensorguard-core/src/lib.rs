@@ -1,10 +1,11 @@
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 pub mod error;
 pub mod json_stream;
 
 use pyo3::prelude::*;
 
+#[allow(unsafe_code)]
 #[pyfunction]
 #[pyo3(signature = (bytes, max_depth=64, max_bytes=json_stream::DEFAULT_MAX_JSON_BYTES))]
 pub fn parse_json_bounded(
@@ -18,6 +19,7 @@ pub fn parse_json_bounded(
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
 }
 
+#[allow(unsafe_code)]
 #[pymodule]
 fn _tg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_json_bounded, m)?)?;
