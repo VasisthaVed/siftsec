@@ -1,5 +1,6 @@
 # Python bytecode & cache
 __pycache__/
+target/
 *.py[cod]
 *$py.class
 *.so

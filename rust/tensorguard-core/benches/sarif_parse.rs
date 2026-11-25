@@ -1,5 +1,5 @@
 use std::time::Instant;
-use tensorguard_core::json_stream::{parse_bounded, DEFAULT_MAX_JSON_BYTES};
+use _tg_core::json_stream::{parse_bounded, DEFAULT_MAX_JSON_BYTES};
 
 fn main() {
     let sample = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"ModelAudit"}},"results":[{"ruleId":"MA-1","level":"error","message":{"text":"test"}}]}]}"#;
