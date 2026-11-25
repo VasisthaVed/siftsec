@@ -99,3 +99,139 @@ class S3BucketAttrs(BaseModel):
     versioning: Literal["Enabled", "Suspended", "Disabled"] | None = None
     sampled_keys: list[str] = Field(default_factory=list)
     model_extension_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class SageMakerNotebookAttrs(BaseModel):
+    kind: Literal["sagemaker_notebook"] = "sagemaker_notebook"
+    status: str = "Unknown"
+    direct_internet_access: str | None = None
+    root_access: str | None = None
+    subnet_id: str | None = None
+    security_groups: list[str] = Field(default_factory=list)
+    kms_key_id: str | None = None
+    role_arn: str | None = None
+    min_imdsv_version: str | None = None
+
+
+class SageMakerEndpointConfigAttrs(BaseModel):
+    kind: Literal["sagemaker_endpoint_config"] = "sagemaker_endpoint_config"
+    kms_key_id: str | None = None
+    data_capture_enabled: bool = False
+    data_capture_kms_key_id: str | None = None
+    instance_types: list[str] = Field(default_factory=list)
+    in_use: bool = False
+
+
+class SageMakerTrainingJobAttrs(BaseModel):
+    kind: Literal["sagemaker_training_job"] = "sagemaker_training_job"
+    enable_network_isolation: bool | None = None
+    has_vpc_config: bool = False
+    training_image: str | None = None
+    image_is_aws_owned: bool | None = None
+    role_arn: str | None = None
+    output_kms_key_id: str | None = None
+
+
+class SageMakerDomainAttrs(BaseModel):
+    kind: Literal["sagemaker_domain"] = "sagemaker_domain"
+    app_network_access_type: str | None = None
+    kms_key_id: str | None = None
+    subnet_ids: list[str] = Field(default_factory=list)
+
+
+class BedrockAccountConfigAttrs(BaseModel):
+    kind: Literal["bedrock_account_config"] = "bedrock_account_config"
+    logging_enabled: bool = False
+    cloudwatch_enabled: bool = False
+    s3_enabled: bool = False
+    bedrock_in_use: bool = False
+
+
+class BedrockGuardrailAttrs(BaseModel):
+    kind: Literal["bedrock_guardrail"] = "bedrock_guardrail"
+    guardrail_id: str
+    status: str | None = None
+    kms_key_arn: str | None = None
+
+
+class BedrockAgentAttrs(BaseModel):
+    kind: Literal["bedrock_agent"] = "bedrock_agent"
+    agent_status: str | None = None
+    role_arn: str | None = None
+    guardrail_id: str | None = None
+    guardrail_version: str | None = None
+    guardrail_ready: bool | None = None
+    customer_encryption_key_arn: str | None = None
+
+
+class BedrockDataSourceAttrs(BaseModel):
+    kind: Literal["bedrock_data_source"] = "bedrock_data_source"
+    knowledge_base_id: str
+    vector_store_arn: str | None = None
+    kms_key_arn: str | None = None
+
+
+class ECRRepositoryAttrs(BaseModel):
+    kind: Literal["ecr_repository"] = "ecr_repository"
+    scan_on_push: bool | None = None
+    registry_scan_type: Literal["BASIC", "ENHANCED"] | None = None
+    image_tag_mutability: str | None = None
+    encryption_type: str | None = None
+    kms_key: str | None = None
+    policy_allows_public: bool | None = None
+
+
+class OpenSearchDomainAttrs(BaseModel):
+    kind: Literal["opensearch_domain"] = "opensearch_domain"
+    vpc_id: str | None = None
+    subnet_ids: list[str] = Field(default_factory=list)
+    fgac_enabled: bool | None = None
+    node_to_node_encryption: bool | None = None
+    encryption_at_rest: bool | None = None
+    kms_key_id: str | None = None
+    enforce_https: bool | None = None
+    public_principal: bool | None = None
+
+
+class OpenSearchServerlessAttrs(BaseModel):
+    kind: Literal["opensearch_serverless"] = "opensearch_serverless"
+    collection_type: str | None = None
+    kms_key_arn: str | None = None
+    network_public: bool | None = None
+    aws_owned_encryption_key: bool | None = None
+
+
+class PolicyStatement(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    effect: str
+    actions: list[str] = Field(default_factory=list)
+    not_actions: list[str] = Field(default_factory=list)
+    resources: list[str] = Field(default_factory=list)
+    not_resources: list[str] = Field(default_factory=list)
+    has_condition: bool = False
+
+
+class IamRoleAttrs(BaseModel):
+    kind: Literal["iam_role"] = "iam_role"
+    statements: list[PolicyStatement] = Field(default_factory=list)
+    attached_managed_arns: list[str] = Field(default_factory=list)
+    trust_principals: list[str] = Field(default_factory=list)
+    trust_has_source_condition: bool = False
+    permissions_boundary_arn: str | None = None
+
+
+class IngressRule(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    protocol: str
+    from_port: int | None = None
+    to_port: int | None = None
+    cidrs_v4: list[str] = Field(default_factory=list)
+    cidrs_v6: list[str] = Field(default_factory=list)
+    source_sg_ids: list[str] = Field(default_factory=list)
+
+
+class EC2SecurityGroupAttrs(BaseModel):
+    kind: Literal["ec2_security_group"] = "ec2_security_group"
+    vpc_id: str | None = None
+    attached: bool | None = None
+    ingress: list[IngressRule] = Field(default_factory=list)

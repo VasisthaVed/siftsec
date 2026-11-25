@@ -84,6 +84,27 @@ class AISPMConfig(BaseSettings):
     boto_connect_timeout_s: float = Field(default=5.0, gt=0.0)
     boto_read_timeout_s: float = Field(default=30.0, gt=0.0)
     s3_key_sample_size: int = Field(default=200, ge=1, le=1000)
+    sagemaker_training_lookback_days: int = Field(default=30, ge=1, le=365)
+    max_training_jobs: int = Field(default=200, ge=1, le=2000)
+    collector_timeout_s: float = Field(default=60.0, gt=0.0)
+    max_concurrency_per_service: dict[str, int] = Field(default_factory=lambda: {"iam": 2})
+    aws_owned_ecr_account_ids: frozenset[str] = Field(
+        default_factory=lambda: frozenset({"763104351884"})  # AWS Deep Learning Containers
+    )
+    broad_managed_policy_arns: frozenset[str] = Field(
+        default_factory=lambda: frozenset(
+            {
+                "arn:aws:iam::aws:policy/AdministratorAccess",
+                "arn:aws:iam::aws:policy/PowerUserAccess",
+                "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess",
+                "arn:aws:iam::aws:policy/AmazonBedrockFullAccess",
+                "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+            }
+        )
+    )
+    wildcard_action_services: frozenset[str] = Field(
+        default_factory=lambda: frozenset({"s3", "dynamodb", "iam", "secretsmanager", "kms"})
+    )
 
     # Local MCP & injection heuristics (ADR-005)
     local_mcp_paths: list[str] = Field(
