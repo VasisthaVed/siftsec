@@ -327,81 +327,50 @@ To achieve breakout adoption alongside Prowler (10k+ stars), Trivy (24k+ stars),
 ```
 
 ### Phase 1: Core Engine, Models & `--demo`
-- Initialize Python project via `uv` with `pyproject.toml`.
-- Configure `ruff` linting and `mypy --strict` type checking.
-- Build Pydantic v2 data models:
-  - `CloudResource`: Normalized resource abstraction across AWS/GCP/Azure/K8s.
-  - `Finding`: Normalized finding with severity, status, remediation, compliance tags (MITRE, OWASP, NIST, EU AI Act).
-  - `Severity`, `Status`, `CloudProvider` enumerations.
-- Build abstract `BaseRule` class and dynamic `RuleRegistry`.
-- Build in-memory **Mock Collector** powering `ai-spm scan --demo`.
+### Phase 0–4: Core Engine, Local Scanner, AWS Collectors/Rules, Reporters & CLI (Complete)
+- Pydantic v2 data models (`CloudResource`, `Finding`, `CoverageGap`, `ScanSummary`), `AISPMConfig` (`AI_SPM_*`), `RuleRegistry` entry-point discovery, weighted posture scoring (`None` on 0 evaluated), secret redaction (`redact()`), and expiry-enforced suppressions/baselines.
+- Hostile-input local scanners: `pickletools.genops()` static disassembler, zip-bomb/zip-slip guards, SafeTensors header checks, and `mcp.json` auditor + SHA-256 lockfile (`tensorguard mcp-lock`).
+- Resilient AWS collectors (`s3`, `sagemaker`, `bedrock`, `ecr`, `opensearch`, `iam`, `ec2`) with `AccessDenied` → `CoverageGap` tracking and 18+ AWS security rules.
+- Atomic `0600` writers, Rich Console, JSON, SARIF v2.1.0 (`partialFingerprints`), and escaped GFM Markdown PR reporters.
 
-### Phase 2: AWS Boto3 Resilient Collector Layer
-- Central AWS Session & Client Factory with adaptive retries (`max_attempts=5`, mode `adaptive`).
-- Graceful permission degradation: trap `AccessDeniedException` per API call.
-- Universal paginator for AWS continuation tokens.
-- Specialized collectors: `S3Collector`, `SageMakerCollector`, `BedrockCollector`, `ECRCollector`, `OpenSearchCollector`, `IAMCollector`, `EC2Collector`.
+### Phase 5: Kubernetes GPU Runtime Security (Complete)
+- `K8sCollector` (`kubernetes` optional extra `[k8s]`) with `limit=500` pagination and multi-tenant GPU namespace counting.
+- Rules (`AI-SPM-K8S-001..004`): NVIDIA Container Toolkit `< 1.17.8` (Bulletin 5659: `CVE-2025-23266`/`CVE-2025-23267`), GPU time-slicing without MIG, privileged/`hostPID`/`/dev/nvidia*` `hostPath` escapes, and mutable image tags without `@sha256:`.
 
-### Phase 3: AWS Rule Implementation (18 Core Rules)
-- Implement rules across Tiers 0–4.
-- CLI filtering: `--services`, `--severity`, `--compliance`.
-- Actionable remediation (AWS CLI, Terraform, CloudFormation).
+### Phase 6: Multi-Cloud Expansion — GCP Vertex AI & GCS (Complete)
+- Provider-neutral `ProviderCollector` protocol and `ProviderRegistry` (`ai_spm.collectors` entry points).
+- `GcpCollector` (`[gcp]` optional extra) and rules `AI-SPM-GCP-001..006` for Vertex AI Workbench, Vertex Endpoints, and GCS model buckets.
 
-### Phase 4: Multi-Sink Reporters
-- **Rich Terminal UI:** Color-coded severity tables. AI Posture Score (0–100):
-  $$\text{Score} = 100 - \sum (\text{Critical} \times 15 + \text{High} \times 8 + \text{Medium} \times 3)$$
-- **SARIF Reporter:** OASIS v2.1.0 for GitHub Code Scanning.
-- **JSON & Markdown Reporters:** Machine-readable + PR comments.
-- Exit code policy: `0` clean, `1` threshold exceeded (`--fail-on HIGH`).
+### Phase 7: AI Supply Chain & AIBOM (Complete)
+- Offline HuggingFace cache provenance (`models--<org>--<repo>/snapshots/<commit>`), license extraction, and `.tensorguard-models.lock` allowlist rules (`AI-SPM-SUPPLY-001..003`).
+- Deterministic **CycloneDX 1.7 ML-BOM** and **SPDX 3.0 AI-profile** generation (`--sbom cyclonedx|spdx`).
 
-### Phase 5: CI/CD & Launch
-- GitHub Action (`.github/workflows/ai-spm.yml`).
-- Terminal demo GIF for README.
-- PyPI publish via `uv build && uv publish`.
-- `pytest` + `moto` test suite.
+### Phase 8: Hardening, Threat Model & Observability (Complete)
+- `docs/threat-model.md` (STRIDE traceability matrix) and `SECURITY.md`.
+- `--log-json` (redacted JSON logs), `--timings`, `--no-plugins`, `tensorguard plugins`, and `--debug-bundle` (redacted diagnostics zip).
 
-### Phase 6: GCP Vertex AI
-- `GCPCollector` using `google-cloud-aiplatform`, `google-cloud-storage`, `google-cloud-container`.
-- Rules for: Vertex AI Workbench egress, GCS model bucket encryption, Artifact Registry scanning, VPC Service Controls enforcement.
+### Phase 9: Attack-Path Correlation, Scan Diff & Compliance Evidence (Complete)
+- `ResourceGraph` multi-hop `CRITICAL` attack-path correlation (`AI-SPM-PATH-001..003`, `--correlate`).
+- Fingerprint scan diff (`tensorguard diff old.json new.json --fail-on-new`) and compliance control summaries (`tensorguard report-compliance`).
 
-### Phase 7: Azure AI Foundry
-- `AzureCollector` using `azure-mgmt-machinelearningservices`, `azure-mgmt-cognitiveservices`.
-- Rules for: Azure ML Compute network isolation, Azure Blob encryption, ACR scanning, Entra ID least-privilege, Defender for AI activation.
+### Phase 10: Hybrid Rust/Python Core & AI Finding Correlation Layer (In Progress — 10.1 Complete)
+- **10.1 (Complete):** `rust/tensorguard-core` (`pyo3 0.28.3`, `abi3-py312`, `panic = "unwind"`, `thiserror` -> `PyErr`, 3-bound `parse_bounded` + `serde_stacker`), pure-Python `_fallback/` + `_core_loader.py` parity tests, SARIF & native JSON ingest adapters (`ModelAudit`, `mcpvuln`, `Trivy`, `Prowler`, `Semgrep`, `agent-bom`, `mcp-tool-auditor`, `MCPiranha`, `agent-audit-kit`, `Cisco MCP Scanner`), `deny.toml`, `wheels.yml`, `rust-gates.yml`, `benches/sarif_parse.rs`, and `rust/tensorguard-fuzz/`.
+- **10.2–10.6 (Next):** Rust cross-tool dedup (`SipHash-1-3`), general BFS reachability (`R3` data-store then `R2` skill/agent/model-handoff), explainable scoring, and reproducible benchmark.
 
-### Phase 8: Kubernetes GPU Runtime
-- `K8sCollector` using `kubernetes` Python client.
-- Rules for: NVIDIA Container Toolkit version audit, MIG vs time-slicing, privileged pod detection, HostPath `/dev/nvidia*` mounting, admission control enforcement.
-
-### Phase 9: MCP Tool Poisoning & Rug-Pull Detection
-- `MCPCollector` parsing `mcp.json` / `mcp_config.json` configuration files.
-- Scan tool descriptions for hidden injection markers (Base64, Unicode obfuscation, steganographic instructions).
-- Hash-pin tool manifests; detect drift between approved and current state.
-- Verify authentication configuration (mTLS, OAuth) on remote MCP servers.
-
-### Phase 10: AI SBOM Generation
-- Automatic AI Bill of Materials generation in CycloneDX v1.7 and SPDX 3.0.
-- Discover and catalog: deployed models (with SHA-256 hashes), datasets, LoRA adapters, MCP servers, inference framework versions.
-- Output as `--sbom cyclonedx` or `--sbom spdx` CLI flag.
-
-### Phase 11: RAG Poisoning Canary System
-- Inject verifiable canary embeddings into knowledge base vector stores.
-- Monitor for canary document displacement or modification indicating corpus tampering.
-- Post-retrieval sanitization middleware: perplexity filtering, source credibility scoring (inspired by RAGDEFENDER / RAGuard research).
-
-### Phase 12: Model Provenance & Shadow AI Network Scanner
-- Verify model weight provenance via Sigstore/Cosign signatures or SHA-256 manifests.
-- Behavioral fingerprint comparison for distillation detection.
-- Network scanner: probe VPC/subnet CIDR ranges for inference endpoints on well-known AI ports (`11434`, `8000`, `8001`, `8080`, `3000`, `5000`).
+### Phase 11–13: Model Integrity Verifier, Skill Supply Chain & Compliance Export (Planned)
+- **Phase 11 (ReDerive):** Signing-profile audit (reject randomized-mode ML-DSA `rnd != 0^256`), GGUF verifiability manifest & per-tensor re-derivation, OMS/Sigstore integration, AISVS mapping.
+- **Phase 12 (Agent Skill Supply Chain):** Skill registry collector (ClawHub/OpenClaw/MCP catalogs), MinHash LSH campaign detection, `OWASP AST02` mapping.
+- **Phase 13 (Compliance Evidence Export):** `frameworks.yaml` (EU AI Act Art. 15 / Reg. (EU) 2026/1744, NIST AI 600-1, ISO/IEC 42001), signed tamper-evident evidence packs, and GRC JSON export.
 
 ---
 
 ## 8. Master Documentation Index (`docs/`)
 
-All subsystem specifications and developer guides are maintained in the [`docs/`](file:///c:/Pro/PROJECT/AI-SPM/doc) directory:
+All public subsystem specifications and security guides are maintained in `docs/`:
 
-1. **[System Architecture & Design](file:///c:/Pro/PROJECT/AI-SPM/docs/architecture.md):** Deep-dive component diagrams, collector abstractions, and resilience patterns.
-2. **[AI-SPM Security Rules Catalog](file:///c:/Pro/PROJECT/AI-SPM/docs/ai-spm-rules-catalog.md):** Technical detection logic and remediation commands for all rules.
-3. **[AI Threat Model & Risk Analysis](file:///c:/Pro/PROJECT/AI-SPM/docs/threat-model.md):** Adversary personas, attack surfaces, MITRE ATLAS, OWASP, and NIST mappings.
-4. **[AI Rules & Engineering Directives](file:///c:/Pro/PROJECT/AI-SPM/docs/ai-rules.md):** Developer standards, Boto3 resilience, pagination, and Pydantic v2 guidelines.
+1. **[System Architecture & Design](file:///c:/Pro/PROJECT/AI-SPM/docs/architecture.md):** Component diagrams, collector abstractions, and resilience patterns.
+2. **[AI-SPM Security Rules Catalog](file:///c:/Pro/PROJECT/AI-SPM/docs/ai-spm-rules-catalog.md):** Detection logic and remediation commands.
+3. **[AI Threat Model & Risk Analysis](file:///c:/Pro/PROJECT/AI-SPM/docs/threat-model.md):** STRIDE traceability matrix and mitigations.
+4. **[Security Policy](file:///c:/Pro/PROJECT/AI-SPM/SECURITY.md):** Vulnerability disclosure process.
 5. **[AWS Least-Privilege IAM Policy](file:///c:/Pro/PROJECT/AI-SPM/docs/aws-iam-permissions.md):** Read-only IAM policy for target environment auditing.
-6. **[Product Requirements Document (PRD)](file:///c:/Pro/PROJECT/AI-SPM/docs/prd.md):** Personas, functional requirements, and performance SLAs.
+6. **[Product Requirements Document (PRD)](file:///c:/Pro/PROJECT/AI-SPM/docs/prd.md):** Personas, functional requirements, and performance targets.
