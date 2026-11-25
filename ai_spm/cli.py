@@ -25,6 +25,8 @@ from ai_spm.collectors.local.models import LocalModelCollector
 from ai_spm.collectors.mock import MockCollector
 from ai_spm.config import settings
 from ai_spm.engine.context import ScanContext
+from ai_spm.engine.diff import diff_scans
+from ai_spm.engine.graph import evaluate_attack_paths
 from ai_spm.engine.models import CloudResource, CoverageGap, ScanSummary, Severity, Status
 from ai_spm.engine.runner import ScanRunner
 from ai_spm.engine.scoring import exit_code, posture_score
@@ -196,6 +198,9 @@ def scan(
     no_plugins: bool = typer.Option(
         False, "--no-plugins", help="Disable external entry-point rule/collector plugins"
     ),
+    correlate: bool = typer.Option(
+        True, "--correlate/--no-correlate", help="Run multi-hop attack-path correlation"
+    ),
 ) -> None:
     """Scan AI/ML workloads for security posture and threat misconfigurations."""
     configure_logging(verbose=verbose, quiet=quiet, json_logs=log_json)
@@ -232,6 +237,8 @@ def scan(
 
         t1 = time.perf_counter()
         raw_findings = ScanRunner(collector=_PreCollectedCollector(resources), context=ctx).run()
+        if correlate:
+            raw_findings.extend(evaluate_attack_paths(resources))
         t_eval = time.perf_counter() - t1
         baseline_fps = load_baseline_fingerprints(baseline)
         findings = apply_suppressions(raw_findings, [], baseline_fingerprints=baseline_fps)
@@ -475,6 +482,89 @@ def mcp_lock(
     except AISPMError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(code=exc.exit_code) from exc
+
+
+@app.command("diff")
+def diff_cmd(
+    old_report: Path = typer.Argument(..., help="Baseline JSON report path"),
+    new_report: Path = typer.Argument(..., help="Latest JSON report path"),
+    fail_on_new: bool = typer.Option(
+        False, "--fail-on-new", help="Exit 1 if any new failed findings were introduced"
+    ),
+) -> None:
+    """Compare two TensorGuard JSON reports by fingerprint (added, fixed, severity drift)."""
+    configure_logging()
+    try:
+        if not old_report.exists():
+            raise AISPMError(f"Old report not found: {old_report}")
+        if not new_report.exists():
+            raise AISPMError(f"New report not found: {new_report}")
+        res = diff_scans(old_report, new_report)
+        payload = {
+            "added_count": len(res.added),
+            "fixed_count": len(res.fixed),
+            "unchanged_count": res.unchanged_count,
+            "changed_severity_count": len(res.changed_severity),
+            "added": res.added,
+            "fixed": res.fixed,
+            "changed_severity": res.changed_severity,
+        }
+        out_console.print(json.dumps(payload, indent=2), soft_wrap=True)
+        if fail_on_new and res.added:
+            raise typer.Exit(code=1)
+    except AISPMError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(code=exc.exit_code) from exc
+
+
+@app.command("report-compliance")
+def report_compliance(
+    framework: str = typer.Option(
+        "owasp-llm",
+        "--framework",
+        "-f",
+        help="Framework mapping: owasp-llm, mitre-atlas, or nist-ai-rmf",
+    ),
+    demo: bool = typer.Option(True, "--demo/--no-demo", help="Evaluate against demo resources"),
+) -> None:
+    """Export compliance control evidence summary (evidence support, not certification)."""
+    configure_logging()
+    _ = demo
+    resources = MockCollector().collect()
+    findings = ScanRunner(collector=_PreCollectedCollector(resources), context=ScanContext()).run()
+    attr_map = {
+        "owasp-llm": "owasp_llm",
+        "mitre-atlas": "mitre_atlas",
+        "nist-ai-rmf": "nist_ai_rmf",
+    }
+    attr_name = attr_map.get(framework.lower())
+    if not attr_name:
+        err_console.print(f"[red]Unsupported framework:[/] {framework}")
+        raise typer.Exit(code=2)
+
+    controls: dict[str, dict[str, int]] = {}
+    for f in findings:
+        tags: list[str] = getattr(f, attr_name, [])
+        for ctrl in tags:
+            bucket = controls.setdefault(ctrl, {"passed": 0, "failed": 0, "other": 0})
+            if f.status == Status.PASSED:
+                bucket["passed"] += 1
+            elif f.status == Status.FAILED:
+                bucket["failed"] += 1
+            else:
+                bucket["other"] += 1
+
+    out_console.print(
+        json.dumps(
+            {
+                "framework": framework.lower(),
+                "disclaimer": "Automated posture evidence support; not formal certification.",
+                "controls": dict(sorted(controls.items())),
+            },
+            indent=2,
+        ),
+        soft_wrap=True,
+    )
 
 
 @app.command("plugins")
