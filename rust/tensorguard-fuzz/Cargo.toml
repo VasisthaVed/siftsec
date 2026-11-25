@@ -1,0 +1,19 @@
+[package]
+name = "tensorguard-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+tensorguard-core = { path = "../tensorguard-core" }
+
+[[bin]]
+name = "json_stream"
+path = "fuzz_targets/json_stream.rs"
+test = false
+doc = false
+bench = false

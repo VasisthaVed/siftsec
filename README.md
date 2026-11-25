@@ -1,16 +1,23 @@
 <div align="center">
 
-# 🛡️ TensorGuard (`ai-spm`)
+<img src="https://img.shields.io/badge/TensorGuard-ai--spm-0D1117?style=for-the-badge&logo=shield&logoColor=white" alt="TensorGuard"/>
 
-**AI Security Posture Management (AI-SPM) Scanner**  
-*Discover, audit, and secure AI/ML infrastructure, model weights, vector databases, and autonomous agents from the metal up.*
+# TensorGuard · `ai-spm`
 
-[![CI](https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml/badge.svg)](https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
-[![MITRE ATLAS](https://img.shields.io/badge/MITRE-ATLAS-red.svg)](https://atlas.mitre.org/)
-[![OWASP LLM 2025](https://img.shields.io/badge/OWASP-LLM%20Top%2010%202025-orange.svg)](https://genai.owasp.org/)
-[![NIST AI 600-1](https://img.shields.io/badge/NIST-AI%20600--1-purple.svg)](https://www.nist.gov/itl/ai-risk-management-framework)
+**AI Security Posture Management — from model weights to agent runtimes**
+
+Statically audit model files, MCP servers, AWS AI services, and Kubernetes GPU workloads.  
+Deterministic. Offline-capable. No data leaves your environment.
+
+[![TensorGuard CI](https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml/badge.svg)](https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml)
+[![Rust Gates](https://github.com/VasisthaVed/tensorguard/actions/workflows/rust-gates.yml/badge.svg)](https://github.com/VasisthaVed/tensorguard/actions/workflows/rust-gates.yml)
+[![Wheels](https://github.com/VasisthaVed/tensorguard/actions/workflows/wheels.yml/badge.svg)](https://github.com/VasisthaVed/tensorguard/actions/workflows/wheels.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Rust 1.88+](https://img.shields.io/badge/rust-1.88%2B-CE422B?logo=rust&logoColor=white)](https://rustup.rs/)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-22C55E.svg)](LICENSE)
+[![MITRE ATLAS](https://img.shields.io/badge/MITRE-ATLAS-DC2626)](https://atlas.mitre.org/)
+[![OWASP LLM 2026](https://img.shields.io/badge/OWASP-LLM%20Top%2010%202026-F97316)](https://genai.owasp.org/)
+[![NIST AI 600-1](https://img.shields.io/badge/NIST-AI%20600--1-7C3AED)](https://www.nist.gov/itl/ai-risk-management-framework)
 
 </div>
 
@@ -18,110 +25,193 @@
 
 ## Why TensorGuard?
 
-Traditional CSPM tools (Prowler, Trivy, ScoutSuite) inspect generic cloud primitives—open ports, unencrypted EBS volumes, or standard S3 buckets. **They treat AI workloads as dumb infrastructure.**
+Traditional CSPM tools see AI workloads as generic cloud blobs — open ports, unencrypted buckets, standard IAM. TensorGuard was built for the actual attack surface of modern AI stacks.
 
-| Attack Surface | Traditional CSPM | 🛡️ TensorGuard (`ai-spm`) |
+| Attack Surface | Traditional CSPM | 🛡️ TensorGuard |
 | :--- | :--- | :--- |
-| **Model Weights (`.pt`, `.pkl`)** | Sees a passive blob in S3 | Detects **Pickle RCE deserialization risks** (`AML.T0010`) and enforces **SafeTensors** |
-| **Vector Databases (RAG)** | Treats OpenSearch/Qdrant like SQL | Flags public vector endpoints exposed to **Embedding Inversion (`Vec2Text`)** |
-| **Autonomous Agents** | Checks generic IAM syntax | Audits **Bedrock Guardrails**, **excessive agency (`LLM06`)**, and wildcard agent roles |
-| **MCP Tool Runtimes** | Blind to Model Context Protocol | Scans **MCP tool manifests** for hidden prompt injection & rug-pull drift |
-| **Posture Scoring** | Binary pass/fail counts | **Severity-weighted CSPM posture score (0–100)** + native **SARIF v2.1.0** |
+| **Model Weights** (`.pt` / `.pkl`) | Passive blob check | Disassembles **pickle opcodes** via `pickletools.genops()` — never `pickle.loads()` — and enforces SafeTensors |
+| **Vector DBs (RAG)** | Treats OpenSearch like SQL | Audits for public access, missing FGAC, and **Embedding Inversion** (`LLM09:2026`) |
+| **Autonomous Agents** | Generic IAM syntax check | Audits **Bedrock Guardrails**, **Excessive Agency** (`LLM03:2026`), wildcard roles, and trust conditions |
+| **MCP Tool Runtimes** | Invisible | Audits `mcp.json` for unpinned `npx`/`uvx` rug pulls, plaintext secrets, Unicode tag smuggling, and lockfile drift |
+| **Multi-scanner correlation** | ❌ | **Phase 10+:** ingests Prowler, Trivy, MCPiranha, ModelAudit, Semgrep output and deduplicates across tools |
+| **Unknown ≠ Fail** | Silently skips or false-passes on `AccessDenied` | Every unreadable attribute emits `Status.ERROR` — coverage gaps are **visible**, never hidden |
 
 ---
 
-## ⚡ 10-Second Quickstart (Zero Credentials Required)
+## ⚡ Quickstart
 
-Test TensorGuard immediately using the built-in `--demo` simulation mode:
+### 1 · Zero-credential demo (10 seconds)
+```bash
+git clone https://github.com/VasisthaVed/tensorguard.git
+cd tensorguard
+uv sync --extra dev
+uv run tensorguard scan --demo
+```
+
+### 2 · Local model & MCP audit
+```bash
+# Scan local model files (.pt/.pkl/.safetensors) and workspace MCP configs
+uv run tensorguard scan --local --path .
+
+# Include your HuggingFace cache
+uv run tensorguard scan --local --path . --include-hf-cache
+```
+
+### 3 · AWS environment scan
+```bash
+# Verify credentials & read-only permissions first
+uv run tensorguard doctor --profile my-sandbox --region us-east-1
+
+# Scan AWS AI services
+uv run tensorguard scan --aws --regions us-east-1,us-west-2 --profile my-sandbox
+```
+
+### 4 · Multi-format export (JSON / SARIF / Markdown)
+```bash
+uv run tensorguard scan --demo --format sarif --output results.sarif
+uv run tensorguard scan --demo --format json
+uv run tensorguard scan --demo --format markdown
+```
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        TensorGuard Pipeline                             │
+│                                                                         │
+│  ┌──────────────┐    ┌────────────────────┐    ┌──────────────────────┐ │
+│  │  Collectors  │───►│  CloudResource     │───►│  37 Auto-Discovered  │ │
+│  │              │    │  (typed, gapped)   │    │  Rules               │ │
+│  │  Local       │    │                   │    │                      │ │
+│  │  AWS Boto3   │    │  Unknown ≠ Fail   │    │  Pure functions      │ │
+│  │  Kubernetes  │    │  gaps → ERROR     │    │  No network/I-O      │ │
+│  │  GCP         │    │  score → None     │    │  shlex-quoted fixes  │ │
+│  └──────────────┘    └────────────────────┘    └──────────┬───────────┘ │
+│                                                           │             │
+│  ┌────────────────────────────────────────────────────────▼───────────┐ │
+│  │                 Phase 10 · Ingest & Correlate (new)                │ │
+│  │                                                                    │ │
+│  │   Prowler  Trivy  MCPiranha  ModelAudit  Semgrep  mcp-tool-auditor │ │
+│  │        └──────────────┬────────────────────────────────┘          │ │
+│  │                       ▼                                           │ │
+│  │             Rust core (pyo3 · abi3-py312)                         │ │
+│  │             parse_json_bounded · 3-bound safety                   │ │
+│  │             dedup · correlate · reachability graph                │ │
+│  └─────────────────────────────────┬──────────────────────────────────┘ │
+│                                    │                                    │
+│  ┌─────────────────────────────────▼──────────────────────────────────┐ │
+│  │          Reporters: Console · JSON · SARIF 2.1.0 · Markdown        │ │
+│  │          Secrets redacted · Fingerprinted · GitHub Code Scanning   │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+> **Phase 10 Rust core** (`rust/tensorguard-core`, `pyo3 = "0.28.3"`, `abi3-py312`):  
+> `parse_json_bounded` enforces three safety limits simultaneously — byte cap, recursion depth, compression ratio — before any SARIF / MCP JSON is parsed. Falls back gracefully to a pure-Python implementation if the native wheel is unavailable.
+
+---
+
+## 📊 Phase Status
+
+| Phase | Description | Status |
+| :---: | :--- | :---: |
+| **0** | Hardening baseline — `AISPMConfig`, `BaseRule`, `Status.ERROR` coverage gaps | ✅ Done |
+| **1** | Local scanner — pickle opcode disassembly, SafeTensors, zip-bomb guards | ✅ Done |
+| **2** | AWS collectors — S3, SageMaker, Bedrock, ECR, OpenSearch, IAM | ✅ Done |
+| **3** | AWS rules — 37 auto-discovered rules, MITRE ATLAS + OWASP mapping | ✅ Done |
+| **4** | CLI & reporters — Console, JSON, SARIF 2.1.0, Markdown, `tensorguard doctor` | ✅ Done |
+| **5** | Kubernetes + GPU — K8s GPU workload auditing, stress-test suite | ✅ Done |
+| **6** | GCP + multi-cloud — GCP collector, multi-cloud expansion | ✅ Done |
+| **7** | AI-BOM + supply chain — SBOM generation, provenance tracking, bounded reads | ✅ Done |
+| **8** | Hardening & trust — threat model, security policy, JSON logging, debug bundle | ✅ Done |
+| **9** | Attack-path correlation — graph-based kill-chain correlation, scan diff, compliance export | ✅ Done |
+| **10.1** | Hybrid Rust/Python core — `parse_json_bounded`, SARIF/JSON ingest adapters (10 tools) | ✅ Done |
+| **10.2** | Dedup engine — `FindingIndex` (SipHash-1-3), deterministic merge key, ≤5ms/200 findings | 🔄 Next |
+| **10.3** | Correlation graph — `petgraph DiGraph<u32>`, skill-node schema, `model→model` edges | 📋 Planned |
+| **10.4** | Reachability BFS — blast-radius scoring, predecessor path, ≥5× raw→reachable reduction | 📋 Planned |
+| **10.5** | Wedge-A prioritization — cross-tool severity fusion, EPSS-style scoring | 📋 Planned |
+| **10.6** | Benchmark & falsification — ≥5× reduction, ≥50% precision gate; negative-result published if not met | 📋 Planned |
+| **11** | Model signing & PQ — ML-DSA-65 (FIPS 204), subliminal-channel mitigation | 📋 Planned |
+| **12** | EU AI Act compliance — Reg. (EU) 2026/1744 deadline 2027-12-02 | 📋 Planned |
+| **13** | Plugin ecosystem — third-party collector + rule authoring API | 📋 Planned |
+
+---
+
+## 🔧 Developer Setup
+
+### Prerequisites
+
+```bash
+# 1. Python 3.12+ via uv
+pip install uv
+uv python install 3.12
+
+# 2. Rust toolchain (required for the native core extension)
+# Windows (winget)
+winget install --id Rustlang.Rustup -e
+
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup toolchain install 1.88 --profile minimal
+```
+
+### Install & Run
 
 ```bash
 git clone https://github.com/VasisthaVed/tensorguard.git
 cd tensorguard
 uv sync --extra dev
-uv run ai-spm scan --demo
+
+# Build and install the Rust extension wheel (required for Rust-path tests)
+cd rust/tensorguard-core
+cargo test --release     # must pass before the wheel build
+cd ../..
+maturin build --release --manifest-path rust/tensorguard-core/Cargo.toml --out dist
+uv pip install --force-reinstall dist/tensorguard_core-*.whl
+
+# Quality gates (all must pass)
+uv run ruff check .
+uv run ruff format --check ai_spm tests
+uv run mypy ai_spm
+uv run pytest                         # 71+ tests, including Rust parity suite
 ```
 
-Or list all dynamically discovered rules:
+### Environment Variables
 
-```bash
-uv run ai-spm list-rules
-```
-
-### Sample Terminal Output
-
-```text
-┌───────────────────── 🛡️  AI-SPM Security Audit Report ──────────────────────┐
-│ AI Security Posture Score: 26/100  |  Passed: 3  |  Failed: 8  |  Total: 11 │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           Security Findings Summary
-┌────────┬──────────┬──────────────────────┬─────────────────┬────────────────┐
-│ Status │ Severity │ Rule ID              │ Resource        │ Threat Mapping │
-├────────┼──────────┼──────────────────────┼─────────────────┼────────────────┤
-│ FAILED │ CRITICAL │ AI-SPM-S3-001        │ corp-ai-model…  │ AML.T0044      │
-│ FAILED │ CRITICAL │ AI-SPM-S3-002        │ corp-ai-model…  │ AML.T0044      │
-│ FAILED │ HIGH     │ AI-SPM-S3-004        │ corp-ai-model…  │ AML.T0010      │
-│ PASSED │ CRITICAL │ AI-SPM-S3-001        │ corp-ai-safete… │ AML.T0044      │
-│ FAILED │ CRITICAL │ AI-SPM-SAGEMAKER-001 │ ml-research-dev │ AML.T0043      │
-│ FAILED │ CRITICAL │ AI-SPM-BEDROCK-003   │ FIN-REPORT-AGE… │ LLM01, LLM06   │
-│ FAILED │ CRITICAL │ AI-SPM-VECTOR-001    │ rag-vector-clu… │ AML.T0044      │
-│ FAILED │ HIGH     │ AI-SPM-IAM-001       │ BedrockExecAdm… │ LLM06:2025     │
-│ FAILED │ CRITICAL │ AI-SPM-MCP-001       │ untrusted-gith… │ AML.T0010      │
-└────────┴──────────┴──────────────────────┴─────────────────┴────────────────┘
-```
-
----
-
-## 🏗️ 7-Tier Bottom-Up AI Defense Architecture
-
-TensorGuard is designed around a layered defense model covering the full AI stack:
-
-```text
-[Tier 6] AI Supply Chain & Provenance   ──► AIBOM (CycloneDX / SPDX 3.0), Weight Signing
-[Tier 5] MCP & Tool Runtimes            ──► Tool Poisoning, Manifest Hash-Pinning
-[Tier 4] Autonomous Agents & Guardrails ──► Bedrock Guardrails, Confused-Deputy Prevention
-[Tier 3] Inference Gateways & Shadow AI ──► Invocation Logging, Ollama/vLLM Port Discovery
-[Tier 2] Vector Databases & RAG         ──► VPC Isolation, FGAC, Vec2Text & PoisonedRAG Defense
-[Tier 1] Model Weights & Containers     ──► KMS CMK, SafeTensors vs Pickle, ECR Scan-on-Push
-[Tier 0] Infra, GPU Runtime & Secrets   ──► SageMaker DIA/RootAccess, K8s GPU & API Key Leaks
-```
-
----
-
-## 📋 Implemented Rules
-
-| Rule ID | Service | Severity | Threat & Framework Mapping |
-| :--- | :--- | :--- | :--- |
-| `AI-SPM-S3-001` | S3 | `CRITICAL` | Model Weight Storage KMS CMK Encryption (`AML.T0044`, `LLM02:2025`) |
-| `AI-SPM-S3-002` | S3 | `CRITICAL` | Public Access Block on AI Model/Dataset Bucket (`AML.T0044`, `AML.T0020`) |
-| `AI-SPM-S3-004` | S3 | `HIGH` | Insecure Model Serialization: Pickle vs SafeTensors (`AML.T0010`, `LLM03:2025`) |
-| `AI-SPM-SAGEMAKER-001` | SageMaker | `CRITICAL` | Notebook Direct Internet Access Enabled (`AML.T0043`, `LLM02:2025`) |
-| `AI-SPM-BEDROCK-003` | Bedrock | `CRITICAL` | Bedrock Agent Missing Active Guardrail (`LLM01:2025`, `LLM06:2025`, `MG-3.1`) |
-| `AI-SPM-VECTOR-001` | OpenSearch | `CRITICAL` | Vector Database Publicly Exposed / Inversion Risk (`AML.T0044`, `LLM02:2025`) |
-| `AI-SPM-IAM-001` | IAM | `HIGH` | Excessive Agency: Wildcard Permissions on AI Roles (`AML.T0043`, `LLM06:2025`) |
-| `AI-SPM-MCP-001` | MCP | `CRITICAL` | MCP Tool Manifest Poisoning / Hidden Injections (`AML.T0010`, `LLM03:2025`) |
-
----
-
-## ⚙️ Dynamic Configuration (Zero Hardcoding)
-
-All scoring weights, file extension heuristics, shadow AI ports, and fail thresholds are dynamically driven by `AISPMConfig` (`ai_spm/config.py`) and can be overridden via environment variables:
+All tunables live in [`AISPMConfig`](ai_spm/config.py) — zero hardcoded magic numbers. Override at runtime:
 
 ```bash
 export AI_SPM_DEFAULT_FAIL_ON=CRITICAL
 export AI_SPM_APP_NAME="TensorGuard-Prod"
+export AI_SPM_MAX_FILE_BYTES=104857600   # 100 MB cap
 ```
-
-Rules are auto-discovered at runtime via `pkgutil.iter_modules` and `importlib.metadata.entry_points(group="ai_spm.rules")`.
 
 ---
 
-## 🔄 GitHub Code Scanning (SARIF) Integration
+## 📋 Rule Coverage (37 Active Rules)
 
-Export OASIS SARIF v2.1.0 findings directly into GitHub's **Security → Code Scanning** tab:
+Run `uv run tensorguard list-rules` to list all auto-discovered rules.
+
+| Domain | Rules | Key Checks |
+| :--- | :--- | :--- |
+| **Local Models** | `AI-SPM-LOCAL-001..004` | Dangerous pickle opcodes (`os`, `subprocess`), unallowlisted globals, zip-bomb ratio/size limits, SafeTensors header offset |
+| **MCP Config** | `AI-SPM-MCP-001..006` | Unpinned `npx`/`uvx`/`:latest`, plaintext `env` secrets, Unicode tag smuggling (`U+E0000–E007F`), Base64 injection, lockfile drift, non-TLS HTTP |
+| **Amazon S3** | `AI-SPM-S3-001..004` | KMS CMK encryption, Public Access Block, Object Versioning, Pickle-vs-SafeTensors heuristic |
+| **SageMaker** | `AI-SPM-SAGEMAKER-001..007` | Direct Internet Access, VPC subnet, `RootAccess`, Endpoint+DataCapture KMS, `EnableNetworkIsolation`, Studio `VpcOnly`, IMDSv2 |
+| **Bedrock** | `AI-SPM-BEDROCK-001..004` | Invocation Logging, Knowledge Base KMS, Agent Guardrails, Agent session KMS |
+| **ECR** | `AI-SPM-ECR-001..003` | `scanOnPush` (Inspector ENHANCED-aware), `IMMUTABLE` tags, public policy |
+| **OpenSearch** | `AI-SPM-VECTOR-001`, `AI-SPM-OPENSEARCH-002..004,007` | VPC isolation, FGAC, node-to-node TLS, `Principal: "*"` policy, AOSS `AllowFromPublic` |
+| **IAM + Shadow AI** | `AI-SPM-IAM-001..003`, `AI-SPM-SHADOW-001` | Wildcard actions, `*FullAccess` managed policies, missing source conditions, EC2 SGs exposing AI ports |
+
+---
+
+## 🔄 GitHub Code Scanning (SARIF)
 
 ```yaml
-- name: Run TensorGuard AI-SPM Scan
-  run: uv run ai-spm scan --demo --output results.sarif
+- name: TensorGuard AI-SPM Scan
+  run: uv run tensorguard scan --local --path . --format sarif --output results.sarif
 
 - name: Upload SARIF to GitHub Security
   uses: github/codeql-action/upload-sarif@v3
@@ -131,11 +221,62 @@ Export OASIS SARIF v2.1.0 findings directly into GitHub's **Security → Code Sc
 
 ---
 
-## 📚 Documentation & Research
+## 🆚 How TensorGuard Differs from Peers
 
-- [Master Architecture & 12-Phase Roadmap](Roadmap.md)
-- [AI Threat Model & Kill Chains](doc/threat-model.md)
-- [Security Rules Catalog](doc/ai-spm-rules-catalog.md)
-- [System Architecture & Design](doc/architecture.md)
-- [Architectural Decisions Log (ADRs)](doc/decisions.md)
-- [Engineering & Zero-Hardcoding Directives](doc/ai-rules.md)
+> **Strategy:** ingest, don't reimplement. TensorGuard ingests output from commodity scanners (`mcp-tool-auditor`, `MCPiranha`, `agent-audit-kit`, Prowler, Trivy) and **correlates across tools** — the thing none of them do individually.
+
+| Tool | Scope | TensorGuard relationship |
+| :--- | :--- | :--- |
+| `mcp-tool-auditor` | MCP rug-pull / HMAC schema drift | **Ingested** as Phase 10.1 adapter |
+| `MCPiranha` | Tool poisoning, cross-server shadowing | **Ingested** as Phase 10.1 adapter |
+| `agent-audit-kit` | 10-platform taint-flow analysis | **Ingested** as Phase 10.1 adapter |
+| `Prowler` | AWS/GCP/Azure CSPM findings | **Ingested** (native SARIF) |
+| `Trivy` | Container + IaC SBOM / CVE | **Ingested** (native SARIF) |
+| `Wiz / Prisma AIRS` | Enterprise CNAPP | Not a target — TensorGuard is the **correlation layer you add on top** |
+
+---
+
+## ⚠️ Limitations & Non-Goals
+
+- **Static pickle scanning:** `pickletools.genops()` is defense-in-depth — novel obfuscation chains can evade it. Always prefer `.safetensors`.
+- **Config-level MCP audit:** `LocalMcpCollector` inspects `mcp.json` statically and **never spawns** untrusted servers.
+- **Read-only guarantee:** TensorGuard never modifies cloud infrastructure or writes to production vector databases.
+- **Fuzz targets** (`rust/tensorguard-fuzz`) are Linux-only (`cargo-fuzz` requires nightly on Linux).
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+| :--- | :--- |
+| [Roadmap.md](Roadmap.md) | Master vision, all phases, ADR index |
+| [docs/ai-rules.md](docs/ai-rules.md) | Rule authoring guide |
+| [docs/decisions.md](docs/decisions.md) | Architecture Decision Records |
+| [docs/threat-model.md](docs/threat-model.md) | AI threat model & kill chains |
+| [docs/ai-spm-rules-catalog.md](docs/ai-spm-rules-catalog.md) | Full rules catalog |
+| [docs/architecture.md](docs/architecture.md) | System architecture & design |
+| [docs/aws-iam-permissions.md](docs/aws-iam-permissions.md) | AWS least-privilege IAM policy |
+
+---
+
+## Contributing
+
+Pull requests targeting `main` trigger the full CI matrix — Python lint/type/test, Rust `cargo test --release`, `cargo-deny` license + advisory check, and `abi3-py312` wheel builds across Ubuntu / macOS / Windows.
+
+Please run all gates locally before opening a PR:
+
+```bash
+uv run ruff check .
+uv run ruff format --check ai_spm tests
+uv run mypy ai_spm
+uv run pytest
+cd rust/tensorguard-core && cargo test --release
+```
+
+---
+
+<div align="center">
+
+**Apache-2.0** · Built with [PyO3](https://pyo3.rs/) · Aligned to [MITRE ATLAS](https://atlas.mitre.org/), [OWASP LLM Top 10 2026](https://genai.owasp.org/), [NIST AI 600-1](https://www.nist.gov/itl/ai-risk-management-framework)
+
+</div>

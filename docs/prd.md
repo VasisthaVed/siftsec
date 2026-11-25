@@ -35,7 +35,7 @@ Enterprise adoption of Large Language Models (LLMs), generative AI agents, and c
 - **FR-3:** Identify untagged Shadow AI resources running in the target account.
 
 ### 4.2 Security Rule Evaluation
-- **FR-4:** Execute detection rules matching `doc/ai-spm-rules-catalog.md` across S3, SageMaker, Bedrock, ECR, and OpenSearch.
+- **FR-4:** Execute detection rules matching `docs/ai-spm-rules-catalog.md` across S3, SageMaker, Bedrock, ECR, and OpenSearch.
 - **FR-5:** Tag every finding with:
   - Severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFORMATIONAL`)
   - Target AWS Resource ARN & ID

@@ -1,5 +1,6 @@
 # Python bytecode & cache
 __pycache__/
+target/
 *.py[cod]
 *$py.class
 *.so
@@ -42,3 +43,14 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local AI assistant rules (kept locally, excluded from Git)
+AGENTS.md
+GEMINI.md
+.agents/
+.agent/
+docs/ai-rules.md
+docs/PLAYBOOK.md
+docs/decisions.md
+docs/gaps.md
+gaps.md

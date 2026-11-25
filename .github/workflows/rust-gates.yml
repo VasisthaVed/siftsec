@@ -1,0 +1,57 @@
+name: Rust Gates
+
+on:
+  push:
+    branches: ["main", "feat/**"]
+    paths:
+      - "rust/**"
+      - "deny.toml"
+      - ".github/workflows/rust-gates.yml"
+  pull_request:
+    paths:
+      - "rust/**"
+      - "deny.toml"
+
+jobs:
+  rust-test-and-audit:
+    name: cargo test + deny (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.88 (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.88"
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/tensorguard-core/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/tensorguard-core/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run cargo test --release
+        working-directory: rust/tensorguard-core
+        run: cargo test --release
+
+      - name: Run cargo clippy (warnings = errors)
+        working-directory: rust/tensorguard-core
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Check licenses & advisories (cargo-deny · ADR-035)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: rust/tensorguard-core/Cargo.toml
+
+      # cargo-geiger: enabled in Phase 10.2 once check_geiger.py threshold script lands (ADR-036)
+      - name: Check own-code unsafe (cargo-geiger · ADR-036)
+        if: false
+        run: cargo geiger --output-format Json --manifest-path rust/tensorguard-core/Cargo.toml

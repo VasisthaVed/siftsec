@@ -17,12 +17,12 @@ class RuleRegistry:
         self._rules[rule.rule_id] = rule
 
     def discover_package(self, package: ModuleType, exclude: set[str] | None = None) -> None:
-        """Auto-discover and import all rule modules within a package."""
-        skip = exclude or {"base", "registry"}
+        """Auto-discover and import all rule modules recursively within a package."""
+        skip = exclude or {"base", "registry", "remediation"}
         prefix = f"{package.__name__}."
-        for _, module_name, _ in pkgutil.iter_modules(package.__path__, prefix):
+        for _, module_name, is_pkg in pkgutil.walk_packages(package.__path__, prefix):
             short_name = module_name.rsplit(".", maxsplit=1)[-1]
-            if short_name in skip:
+            if is_pkg or short_name in skip or short_name.startswith("_"):
                 continue
             importlib.import_module(module_name)
 

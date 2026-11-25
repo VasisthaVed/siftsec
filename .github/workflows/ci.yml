@@ -2,7 +2,7 @@ name: TensorGuard CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "feat/**"]
   pull_request:
     branches: ["main"]
 
@@ -19,8 +19,21 @@ jobs:
       - name: Set up Python 3.12
         run: uv python install 3.12
 
-      - name: Install dependencies
+      - name: Install Rust toolchain (for Rust-path parity tests)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.88"
+
+      - name: Install Python dependencies
         run: uv sync --extra dev
+
+      - name: Build and install Rust extension wheel
+        run: |
+          pip install maturin
+          maturin build --release --strip \
+            --manifest-path rust/tensorguard-core/Cargo.toml \
+            --out dist
+          uv pip install --force-reinstall dist/tensorguard_core-*.whl
 
       - name: Run Ruff lint & format check
         run: |
@@ -30,14 +43,22 @@ jobs:
       - name: Run Mypy strict type check
         run: uv run mypy ai_spm
 
-      - name: Run Pytest suite
-        run: uv run pytest --cov=ai_spm --cov-report=term-missing
+      - name: Run full pytest suite (including Rust parity)
+        run: uv run pytest --cov=ai_spm --cov-report=term-missing -v
 
       - name: Generate demo SARIF report
         run: uv run ai-spm scan --demo --output tensorguard-demo.sarif || true
 
-      - name: Upload SARIF artifact
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tensorguard-demo.sarif
+        continue-on-error: true
+
+      - name: Upload SARIF as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: tensorguard-sarif
           path: tensorguard-demo.sarif
+          if-no-files-found: ignore

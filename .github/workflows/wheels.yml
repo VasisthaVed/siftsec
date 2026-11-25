@@ -1,0 +1,72 @@
+name: Wheels (abi3-py312)
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "rust/**"
+      - ".github/workflows/wheels.yml"
+
+jobs:
+  build_wheels:
+    name: Build wheel · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.88 (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.88"
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-wheels-${{ hashFiles('rust/tensorguard-core/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-wheels-
+
+      - name: Build abi3-py312 wheel via maturin
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: >-
+            --release
+            --strip
+            --manifest-path rust/tensorguard-core/Cargo.toml
+            --out dist
+          manylinux: auto
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tensorguard-wheel-${{ matrix.os }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  # Collect all wheels from the matrix into a single artifact for release
+  collect_wheels:
+    name: Collect all wheels
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tensorguard-wheel-*
+          merge-multiple: true
+          path: dist/
+
+      - name: Upload combined wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tensorguard-wheels-all
+          path: dist/*.whl

@@ -145,7 +145,7 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
 
 ### Phase 3: AI-SPM Rule Implementation
 
-**Goal:** Implement all 16 detection rules across the 5 core AI services based on `doc/ai-spm-rules-catalog.md`.
+**Goal:** Implement all 16 detection rules across the 5 core AI services based on `docs/ai-spm-rules-catalog.md`.
 
 #### Tasks & Deliverables:
 1. **S3 Rules:**
