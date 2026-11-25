@@ -14,6 +14,7 @@ class S3ModelEncryptionRule(BaseRule):
     )
     severity = Severity.MEDIUM
     service = "s3"
+    required_attrs = ("encryption",)
     mitre_atlas = ["AML.T0044"]
     owasp_llm = ["LLM02:2026"]
     nist_ai_rmf = ["MP-4.1"]
@@ -21,15 +22,20 @@ class S3ModelEncryptionRule(BaseRule):
     def evaluate(self, resource: CloudResource) -> Finding:
         enc_type = resource.metadata.get("encryption_type", "NONE")
         kms_key = resource.metadata.get("kms_key_id")
+        kms_is_cmk = resource.metadata.get("kms_key_is_cmk")
 
-        if (
-            enc_type in (settings.preferred_kms_encryption, "aws:kms:dsse")
-            and kms_key
-            and "alias/aws/s3" not in kms_key
-        ):
-            return self.passed(
-                resource, f"S3 bucket '{resource.name}' uses Customer-Managed KMS Key."
-            )
+        if enc_type in (settings.preferred_kms_encryption, "aws:kms:dsse"):
+            if kms_is_cmk is False or (kms_key and "alias/aws/s3" in str(kms_key)):
+                pass
+            elif kms_is_cmk is None and "kms_key" in resource.gaps:
+                return self.skipped(
+                    resource,
+                    "KMS key ownership could not be determined (kms:DescribeKey denied).",
+                )
+            elif kms_key:
+                return self.passed(
+                    resource, f"S3 bucket '{resource.name}' uses Customer-Managed KMS Key."
+                )
 
         remediation = (
             f"aws s3api put-bucket-encryption --bucket {shlex.quote(resource.name)} "
@@ -51,6 +57,7 @@ class S3BlockPublicAccessRule(BaseRule):
     description = "All public access block settings must be enabled on AI artifact buckets."
     severity = Severity.CRITICAL
     service = "s3"
+    required_attrs = ("public_access",)
     mitre_atlas = ["AML.T0044", "AML.T0020"]
     owasp_llm = ["LLM02:2026", "LLM05:2026"]
 
@@ -86,6 +93,7 @@ class S3InsecureSerializationRule(BaseRule):
     description = "Model storage contains legacy serialized checkpoints vulnerable to RCE."
     severity = Severity.MEDIUM
     service = "s3"
+    required_attrs = ("sampled_keys",)
     mitre_atlas = ["AML.T0010"]
     owasp_llm = ["LLM04:2026"]
 

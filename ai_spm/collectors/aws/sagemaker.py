@@ -53,16 +53,14 @@ class SageMakerCollector(AWSBaseCollector):
 
     def _collect_notebooks(self, sm: Any, region: str) -> list[CloudResource]:
         out: list[CloudResource] = []
-        list_gaps: dict[str, str] = {}
-        try:
-            items = list(self.paginate(sm, "list_notebook_instances", "NotebookInstances"))
-        except Exception:  # noqa: BLE001
-            return out
+        items = self.safe_paginate(
+            sm, "list_notebook_instances", "NotebookInstances", region=region
+        )
 
         for nb in items:
             name = str(nb["NotebookInstanceName"])
             arn = str(nb["NotebookInstanceArn"])
-            gaps: dict[str, str] = dict(list_gaps)
+            gaps: dict[str, str] = {}
             try:
                 desc = self.call(
                     gaps, "describe", sm.describe_notebook_instance, NotebookInstanceName=name
@@ -124,11 +122,10 @@ class SageMakerCollector(AWSBaseCollector):
                     if isinstance(ep_desc, dict) and ep_desc.get("EndpointConfigName"):
                         in_use_configs.add(str(ep_desc["EndpointConfigName"]))
 
-        cfg_resp = self.call({}, "endpoint_configs", sm.list_endpoint_configs)
-        if not isinstance(cfg_resp, dict):
-            return out
-
-        for ec in cfg_resp.get("EndpointConfigs", []):
+        ep_configs = self.safe_paginate(
+            sm, "list_endpoint_configs", "EndpointConfigs", region=region
+        )
+        for ec in ep_configs:
             name = str(ec["EndpointConfigName"])
             arn = str(ec["EndpointConfigArn"])
             gaps: dict[str, str] = {}
@@ -223,10 +220,8 @@ class SageMakerCollector(AWSBaseCollector):
 
     def _collect_domains(self, sm: Any, region: str) -> list[CloudResource]:
         out: list[CloudResource] = []
-        resp = self.call({}, "domains", sm.list_domains)
-        if not isinstance(resp, dict):
-            return out
-        for dom in resp.get("Domains", []):
+        domains = self.safe_paginate(sm, "list_domains", "Domains", region=region)
+        for dom in domains:
             dom_id = str(dom["DomainId"])
             arn = str(dom["DomainArn"])
             name = str(dom.get("DomainName", dom_id))

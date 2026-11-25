@@ -86,11 +86,15 @@ class BedrockCollector(AWSBaseCollector):
 
     def _collect_guardrails(self, bedrock: Any, region: str) -> list[CloudResource]:
         out: list[CloudResource] = []
-        resp = self.call({}, "guardrails", bedrock.list_guardrails)
-        if not isinstance(resp, dict):
-            return out
-
-        for gr in resp.get("guardrails", []):
+        items = self.safe_paginate(
+            bedrock,
+            "list_guardrails",
+            "guardrails",
+            region=region,
+            token_in="nextToken",
+            token_out="nextToken",
+        )
+        for gr in items:
             gr_id = str(gr["id"])
             arn = str(gr["arn"])
             name = str(gr.get("name", gr_id))
@@ -124,11 +128,15 @@ class BedrockCollector(AWSBaseCollector):
 
     def _collect_agents(self, agent_client: Any, region: str) -> list[CloudResource]:
         out: list[CloudResource] = []
-        resp = self.call({}, "agents", agent_client.list_agents)
-        if not isinstance(resp, dict):
-            return out
-
-        for ag in resp.get("agentSummaries", []):
+        items = self.safe_paginate(
+            agent_client,
+            "list_agents",
+            "agentSummaries",
+            region=region,
+            token_in="nextToken",
+            token_out="nextToken",
+        )
+        for ag in items:
             ag_id = str(ag["agentId"])
             name = str(ag.get("agentName", ag_id))
             gaps: dict[str, str] = {}
@@ -178,11 +186,15 @@ class BedrockCollector(AWSBaseCollector):
 
     def _collect_knowledge_bases(self, agent_client: Any, region: str) -> list[CloudResource]:
         out: list[CloudResource] = []
-        kb_resp = self.call({}, "knowledge_bases", agent_client.list_knowledge_bases)
-        if not isinstance(kb_resp, dict):
-            return out
-
-        for kb in kb_resp.get("knowledgeBaseSummaries", []):
+        kbs = self.safe_paginate(
+            agent_client,
+            "list_knowledge_bases",
+            "knowledgeBaseSummaries",
+            region=region,
+            token_in="nextToken",
+            token_out="nextToken",
+        )
+        for kb in kbs:
             kb_id = str(kb["knowledgeBaseId"])
             kb_desc = self.call(
                 {}, "kb_describe", agent_client.get_knowledge_base, knowledgeBaseId=kb_id

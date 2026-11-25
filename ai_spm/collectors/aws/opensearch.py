@@ -4,29 +4,14 @@ import json
 from fnmatch import fnmatch
 from typing import Any, ClassVar, Literal
 
-from ai_spm.collectors.aws.base import AWSBaseCollector, ResourceGoneError
+from ai_spm.collectors.aws.base import (
+    AWSBaseCollector,
+    ResourceGoneError,
+    policy_allows_public_principal,
+)
 from ai_spm.collectors.aws.classify import classify_ai_workload
 from ai_spm.engine.attrs import OpenSearchDomainAttrs, OpenSearchServerlessAttrs
 from ai_spm.engine.models import CloudProvider, CloudResource
-
-
-def _policy_has_public_principal(policy_str: str | None) -> bool:
-    if not policy_str:
-        return False
-    try:
-        doc = json.loads(policy_str)
-    except json.JSONDecodeError:
-        return False
-    for stmt in doc.get("Statement", []):
-        if stmt.get("Effect") != "Allow":
-            continue
-        principal = stmt.get("Principal")
-        is_star = principal == "*" or (
-            isinstance(principal, dict) and principal.get("AWS") in ("*", ["*"])
-        )
-        if is_star and not stmt.get("Condition"):
-            return True
-    return False
 
 
 class OpenSearchCollector(AWSBaseCollector):
@@ -102,7 +87,7 @@ class OpenSearchCollector(AWSBaseCollector):
                         encryption_at_rest=ear.get("Enabled"),
                         kms_key_id=ear.get("KmsKeyId"),
                         enforce_https=ep_opts.get("EnforceHTTPS"),
-                        public_principal=_policy_has_public_principal(dom.get("AccessPolicies")),
+                        public_principal=policy_allows_public_principal(dom.get("AccessPolicies")),
                     )
                     meta = attrs.model_dump()
                     meta["in_vpc"] = bool(attrs.vpc_id)
@@ -131,11 +116,9 @@ class OpenSearchCollector(AWSBaseCollector):
         aoss = self.factory.client("opensearchserverless", region=region)
         out: list[CloudResource] = []
 
-        list_resp = self.call({}, "collections", aoss.list_collections)
-        if not isinstance(list_resp, dict):
-            return out
-
-        summaries = list_resp.get("collectionSummaries", [])
+        summaries = self.safe_paginate(
+            aoss, "list_collections", "collectionSummaries", region=region
+        )
         if not summaries:
             return out
 
@@ -229,10 +212,15 @@ class OpenSearchCollector(AWSBaseCollector):
         self, collection_name: str, net_policies: list[dict[str, Any]]
     ) -> bool | None:
         for det in net_policies:
-            rules = det.get("policy", [])
-            if not isinstance(rules, list):
+            raw_pol = det.get("policy", [])
+            if isinstance(raw_pol, str):
+                try:
+                    raw_pol = json.loads(raw_pol)
+                except json.JSONDecodeError:
+                    continue
+            if not isinstance(raw_pol, list):
                 continue
-            for entry in rules:
+            for entry in raw_pol:
                 matched = any(
                     fnmatch(f"collection/{collection_name}", str(t))
                     for r in entry.get("Rules", [])

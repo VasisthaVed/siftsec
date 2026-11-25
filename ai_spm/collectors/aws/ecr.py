@@ -1,31 +1,18 @@
 """Amazon ECR collector for AI/ML container repositories (Phase 2.7)."""
 
-import json
 from typing import Any, ClassVar, Literal
 
-from ai_spm.collectors.aws.base import ABSENT, AWSBaseCollector, ResourceGoneError
+from ai_spm.collectors.aws.base import (
+    ABSENT,
+    AWSBaseCollector,
+    ResourceGoneError,
+    policy_allows_public_principal,
+)
 from ai_spm.collectors.aws.classify import classify_ai_workload
 from ai_spm.engine.attrs import ECRRepositoryAttrs
 from ai_spm.engine.models import CloudProvider, CloudResource
 
 _ABSENT_REPO_POLICY = frozenset({"RepositoryPolicyNotFoundException"})
-
-
-def _policy_allows_public(policy_text: str) -> bool:
-    try:
-        doc = json.loads(policy_text)
-    except json.JSONDecodeError:
-        return False
-    for stmt in doc.get("Statement", []):
-        if stmt.get("Effect") != "Allow":
-            continue
-        principal = stmt.get("Principal")
-        is_star = principal == "*" or (
-            isinstance(principal, dict) and principal.get("AWS") in ("*", ["*"])
-        )
-        if is_star and not stmt.get("Condition"):
-            return True
-    return False
 
 
 class ECRCollector(AWSBaseCollector):
@@ -57,11 +44,10 @@ class ECRCollector(AWSBaseCollector):
             if raw_type in ("BASIC", "ENHANCED"):
                 reg_scan_type = raw_type
 
-        repos_resp = self.call({}, "repositories", ecr.describe_repositories)
-        if not isinstance(repos_resp, dict):
-            return out
-
-        for repo in repos_resp.get("repositories", []):
+        repos = self.safe_paginate(
+            ecr, "describe_repositories", "repositories", region=target_region
+        )
+        for repo in repos:
             name = str(repo["repositoryName"])
             arn = str(repo["repositoryArn"])
             gaps: dict[str, str] = {}
@@ -87,7 +73,9 @@ class ECRCollector(AWSBaseCollector):
                 if pol_resp is ABSENT:
                     pol_public = False
                 elif isinstance(pol_resp, dict):
-                    pol_public = _policy_allows_public(str(pol_resp.get("policyText", "{}")))
+                    pol_public = policy_allows_public_principal(
+                        str(pol_resp.get("policyText", "{}"))
+                    )
 
                 enc = repo.get("encryptionConfiguration", {})
                 attrs = ECRRepositoryAttrs(

@@ -115,6 +115,9 @@ class AwsOrchestrator:
 
         resources = self._post_pass_links(resources)
 
+        for col in collectors:
+            gaps.extend(col.coverage_gaps)
+
         # Post-pass B: collect IAM roles referenced by discovered AI resources
         want_iam = not ctx.services or "iam" in {s.lower() for s in ctx.services}
         if want_iam:

@@ -1,5 +1,6 @@
 """Base AWS collector with pagination, error classification, and gap barriers (Phase 2.2)."""
 
+import json
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Iterator, Mapping
@@ -11,6 +12,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from ai_spm.collectors.aws.client import AwsClientFactory, AwsIdentity
 from ai_spm.collectors.base import BaseCollector
 from ai_spm.config import AISPMConfig
+from ai_spm.engine.models import CoverageGap
 
 log = logging.getLogger("ai_spm.collectors.aws")
 T = TypeVar("T")
@@ -82,6 +84,35 @@ def classify_client_error(exc: ClientError) -> ErrorKind:
     return ErrorKind.OTHER
 
 
+def policy_allows_public_principal(policy: str | Mapping[str, Any] | None) -> bool:
+    """Return True if an IAM/resource policy grants unconditioned access to Principal '*'."""
+    if not policy:
+        return False
+    if isinstance(policy, str):
+        try:
+            doc: Any = json.loads(policy)
+        except json.JSONDecodeError:
+            return False
+    else:
+        doc = policy
+    if not isinstance(doc, Mapping):
+        return False
+
+    stmts = doc.get("Statement", [])
+    if isinstance(stmts, Mapping):
+        stmts = [stmts]
+    for stmt in stmts:
+        if not isinstance(stmt, Mapping) or stmt.get("Effect") != "Allow":
+            continue
+        principal = stmt.get("Principal")
+        is_star = principal == "*" or (
+            isinstance(principal, Mapping) and principal.get("AWS") in ("*", ["*"])
+        )
+        if is_star and not stmt.get("Condition"):
+            return True
+    return False
+
+
 class AWSBaseCollector(BaseCollector):
     """Shared pagination and exception-barrier base for all AWS service collectors."""
 
@@ -99,6 +130,7 @@ class AWSBaseCollector(BaseCollector):
         self.cfg = cfg
         self.identity = identity
         self._warned_gaps: set[tuple[str, str]] = set()
+        self.coverage_gaps: list[CoverageGap] = []
 
     @abstractmethod
     def collect_region(self, region: str | None) -> list[Any]:
@@ -134,6 +166,39 @@ class AWSBaseCollector(BaseCollector):
             if not token:
                 return
 
+    def safe_paginate(
+        self,
+        client: Any,
+        method: str,
+        result_key: str,
+        region: str = "global",
+        token_in: str = "NextToken",
+        token_out: str = "NextToken",
+        **kwargs: Any,
+    ) -> list[Mapping[str, Any]]:
+        """Paginate inside an exception barrier, recording CoverageGap on failure."""
+        try:
+            return list(
+                self.paginate(
+                    client, method, result_key, token_in=token_in, token_out=token_out, **kwargs
+                )
+            )
+        except ClientError as exc:
+            kind = classify_client_error(exc)
+            if kind is ErrorKind.REGION_UNAVAILABLE:
+                log.info("Skipping %s in %s (%s)", self.service, region, kind)
+                return []
+            code = (
+                "AccessDenied"
+                if kind is ErrorKind.DENIED
+                else str(exc.response.get("Error", {}).get("Code", "ClientError"))
+            )
+            self._record_coverage_gap(region, method, code)
+            return []
+        except (BotoCoreError, TimeoutError) as exc:
+            self._record_coverage_gap(region, method, type(exc).__name__)
+            return []
+
     def call(
         self,
         gaps: dict[str, str],
@@ -141,6 +206,7 @@ class AWSBaseCollector(BaseCollector):
         fn: Callable[..., T],
         *args: Any,
         absent: frozenset[str] = frozenset(),
+        region: str = "global",
         **kwargs: Any,
     ) -> T | object | None:
         """Execute one AWS API call inside an exception barrier."""
@@ -153,6 +219,8 @@ class AWSBaseCollector(BaseCollector):
             kind = classify_client_error(exc)
             if kind is ErrorKind.GONE:
                 raise ResourceGoneError from exc
+            if kind is ErrorKind.REGION_UNAVAILABLE:
+                return None
             gap_code = "AccessDenied" if kind is ErrorKind.DENIED else code
             gaps[attr] = gap_code
             self._log_gap_once(attr, gap_code)
@@ -162,6 +230,12 @@ class AWSBaseCollector(BaseCollector):
             gaps[attr] = gap_code
             self._log_gap_once(attr, gap_code)
             return None
+
+    def _record_coverage_gap(self, region: str, api: str, code: str) -> None:
+        self.coverage_gaps.append(
+            CoverageGap(service=self.service, region=region, api=api, error_code=code)
+        )
+        self._log_gap_once(api, code)
 
     def _log_gap_once(self, attr: str, code: str) -> None:
         key = (self.service, attr)

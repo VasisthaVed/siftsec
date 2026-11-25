@@ -188,3 +188,24 @@ def test_s3_collector_with_moto() -> None:
         assert ("ai-safetensors-prod", "AI-SPM-S3-002") in passed
         assert ("ml-weights-west", "AI-SPM-S3-001") in failed
         assert ("ml-weights-west", "AI-SPM-S3-004") in failed
+
+
+def test_s3_unknown_encryption_emits_error_not_fail() -> None:
+    from ai_spm.collectors.base import BaseCollector
+
+    class _GapCollector(BaseCollector):
+        def collect(self) -> list[CloudResource]:
+            return [
+                CloudResource(
+                    arn="arn:aws:s3:::denied-bucket",
+                    id="denied-bucket",
+                    name="denied-bucket",
+                    service="s3",
+                    gaps={"encryption": "AccessDenied"},
+                )
+            ]
+
+    findings = ScanRunner(collector=_GapCollector(), services=["s3"]).run()
+    s3_001 = next(f for f in findings if f.rule_id == "AI-SPM-S3-001")
+    assert s3_001.status is Status.ERROR
+    assert s3_001.error_code == "AccessDenied"
