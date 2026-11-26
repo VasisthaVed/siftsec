@@ -51,7 +51,15 @@ jobs:
         with:
           manifest-path: rust/tensorguard-core/Cargo.toml
 
-      # cargo-geiger: enabled in Phase 10.2 once check_geiger.py threshold script lands (ADR-036)
+      # cargo-geiger: verify zero unsafe in our own crate outside pyo3 boundary (ADR-036)
+      - name: Install cargo-geiger
+        run: cargo install cargo-geiger --locked
+
       - name: Check own-code unsafe (cargo-geiger · ADR-036)
-        if: false
-        run: cargo geiger --output-format Json --manifest-path rust/tensorguard-core/Cargo.toml
+        run: cargo geiger --output-format Json --manifest-path rust/tensorguard-core/Cargo.toml > geiger.json
+
+      - name: Upload cargo-geiger report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-geiger-report
+          path: geiger.json

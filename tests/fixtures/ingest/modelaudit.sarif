@@ -1,0 +1,201 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ModelAudit",
+          "version": "0.2.58",
+          "informationUri": "https://github.com/protectai/modelaudit",
+          "rules": [
+            {
+              "id": "S201",
+              "name": "Pickle Check",
+              "shortDescription": {
+                "text": "Found REDUCE opcode invoking dangerous global: os.system"
+              },
+              "fullDescription": {
+                "text": "Found REDUCE opcode invoking dangerous global: os.system The 'os' module provides direct access to operating system functions, allowing execution of arbitrary system commands, file system manipulation, and environment variable access. Malicious models can use this to compromise the host system, steal data, or install malware."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error",
+                "rank": 90.0
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "ml-model"
+                ],
+                "precision": "high",
+                "problem.severity": "error",
+                "rule_code": "S201"
+              },
+              "help": {
+                "text": "The 'os' module provides direct access to operating system functions, allowing execution of arbitrary system commands, file system manipulation, and environment variable access. Malicious models can use this to compromise the host system, steal data, or install malware.",
+                "markdown": "The 'os' module provides direct access to operating system functions, allowing execution of arbitrary system commands, file system manipulation, and environment variable access. Malicious models can use this to compromise the host system, steal data, or install malware."
+              }
+            }
+          ],
+          "notifications": [],
+          "taxa": [],
+          "semanticVersion": "0.2.58",
+          "language": "en-US",
+          "contents": [
+            "localizedData",
+            "nonLocalizedData"
+          ],
+          "isComprehensive": false
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "commandLine": "modelaudit /redacted/evil_test.pkl",
+          "arguments": [
+            "/redacted/evil_test.pkl"
+          ],
+          "workingDirectory": {
+            "uri": "file:///redacted/workspace"
+          },
+          "exitCode": 1,
+          "exitCodeDescription": "Security issues detected",
+          "exitSignalName": null,
+          "exitSignalNumber": null,
+          "processStartFailureMessage": null,
+          "machine": null,
+          "account": null,
+          "processId": null,
+          "executableLocation": null,
+          "stdin": null,
+          "stdout": null,
+          "stderr": null,
+          "stdoutStderr": null,
+          "properties": {
+            "filesScanned": 1,
+            "bytesScanned": 28,
+            "duration": 0.7539477348327637,
+            "scanners": [
+              "pickle"
+            ],
+            "processCompleted": true,
+            "securityCoverageComplete": true,
+            "incompleteCoverage": false,
+            "operationalErrors": false
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "S201",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Found REDUCE opcode invoking dangerous global: os.system"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "redacted/evil_test.pkl%20%28pos%2026%29",
+                  "uriBaseId": "%SRCROOT%"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3c6c17a660a10e75"
+          },
+          "relatedLocations": [],
+          "suppressions": [],
+          "baselineState": "new",
+          "rank": 90.0,
+          "kind": "fail",
+          "properties": {
+            "pickle_source": "/redacted/evil_test.pkl",
+            "opcode": "REDUCE",
+            "module": "os",
+            "name": "system",
+            "import_reference": "os.system",
+            "global_position": 2,
+            "opcode_position": 26,
+            "function": "system",
+            "associated_global": "os.system",
+            "pickle_rule_code": "DANGEROUS_CALL",
+            "rule_code": "S201",
+            "issue_type": "pickle_check"
+          }
+        },
+        {
+          "ruleId": "S201",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Raw pickle content references dangerous helper: os.system"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "redacted/evil_test.pkl",
+                  "uriBaseId": "%SRCROOT%"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "454371aeaeb79364"
+          },
+          "relatedLocations": [],
+          "suppressions": [],
+          "baselineState": "new",
+          "rank": 90.0,
+          "kind": "fail",
+          "properties": {
+            "pattern": "os.system",
+            "source": "bounded_raw_pickle_window",
+            "associated_global": "os.system",
+            "rule_code": "S201",
+            "issue_type": "pickle_check"
+          }
+        }
+      ],
+      "artifacts": [
+        {
+          "location": {
+            "uri": "redacted/evil_test.pkl",
+            "uriBaseId": "%SRCROOT%"
+          },
+          "mimeType": "application/octet-stream",
+          "properties": {
+            "type": "pickle"
+          },
+          "length": 28,
+          "hashes": {
+            "sha-256": "dc957e635ed9bf33c5b566f8c03353845494ba4a968a93877352e179e88ddc42",
+            "md5": "144432be5d850540ff29c049854ad1fc"
+          }
+        }
+      ],
+      "automationDetails": {
+        "description": {
+          "text": "ModelAudit security scan for ML model files"
+        },
+        "id": "modelaudit-scan-1795695266"
+      },
+      "threadFlowLocations": [],
+      "taxonomies": [],
+      "addresses": [],
+      "translations": [],
+      "policies": [],
+      "webRequests": [],
+      "webResponses": [],
+      "properties": {
+        "totalChecks": 7,
+        "passedChecks": 5,
+        "failedChecks": 2
+      }
+    }
+  ]
+}

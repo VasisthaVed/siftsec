@@ -1,5 +1,6 @@
 """Runtime loader for compiled ai_spm._tg_core with pure-Python fallback (ADR-030)."""
 
+import importlib
 import json
 import logging
 from typing import Any
@@ -10,9 +11,9 @@ HAS_RUST: bool
 
 try:
     try:
-        from ai_spm import _tg_core as _native  # type: ignore[attr-defined]
+        _native: Any = importlib.import_module("ai_spm._tg_core")
     except ImportError:
-        import _tg_core as _native  # type: ignore[import-not-found]
+        _native = importlib.import_module("_tg_core")
 
     def parse_json_bounded(
         data: bytes,

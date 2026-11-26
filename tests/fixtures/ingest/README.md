@@ -4,9 +4,9 @@
 
 | Tool | Adapter Path | Real Output Fixture Status |
 | :--- | :--- | :--- |
-| `ModelAudit` | `sarif_adapter.py`, `json_adapter.py` | TODO (synthetic fixture only) |
+| `ModelAudit` | `sarif_adapter.py`, `json_adapter.py` | Recorded (`modelaudit.sarif`, v0.2.58, redacted) |
 | `mcpvuln` | `json_adapter.py` | TODO (synthetic fixture only) |
-| `Trivy` | `sarif_adapter.py` | TODO (synthetic fixture only) |
+| `Trivy` | `sarif_adapter.py` | Recorded (`trivy.sarif`, v0.76.2, redacted) |
 | `Prowler` | `json_adapter.py`, `sarif_adapter.py` | TODO (synthetic fixture only) |
 | `Semgrep` | `sarif_adapter.py` | TODO (synthetic fixture only) |
 | `agent-bom` | `sarif_adapter.py`, `json_adapter.py` | TODO (synthetic fixture only) |

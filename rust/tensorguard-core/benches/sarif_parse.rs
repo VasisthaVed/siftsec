@@ -1,5 +1,5 @@
-use std::time::Instant;
 use _tg_core::json_stream::{parse_bounded, DEFAULT_MAX_JSON_BYTES};
+use std::time::Instant;
 
 fn main() {
     let sample = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"ModelAudit"}},"results":[{"ruleId":"MA-1","level":"error","message":{"text":"test"}}]}]}"#;
@@ -9,5 +9,9 @@ fn main() {
     }
     let elapsed = start.elapsed();
     println!("Parsed 1,000 SARIF payloads in {:?}", elapsed);
-    assert!(elapsed.as_millis() < 500, "SARIF parse regression: {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() < 500,
+        "SARIF parse regression: {:?}",
+        elapsed
+    );
 }
