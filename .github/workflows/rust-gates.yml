@@ -47,19 +47,23 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Check licenses & advisories (cargo-deny · ADR-035)
+        if: runner.os == 'Linux'
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
           manifest-path: rust/siftsec-core/Cargo.toml
 
       # cargo-geiger: verify zero unsafe in our own crate outside pyo3 boundary (ADR-036)
       - name: Install cargo-geiger
+        if: runner.os == 'Linux'
         run: cargo install cargo-geiger --version 0.13.0 --locked
 
       - name: Check own-code unsafe (cargo-geiger · ADR-036)
+        if: runner.os == 'Linux'
         working-directory: rust/siftsec-core
         run: cargo geiger --output-format Json > ../../geiger.json
 
       - name: Upload cargo-geiger report
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: cargo-geiger-report
