@@ -113,9 +113,9 @@ jobs:
           echo '${{ toJSON(needs) }}' | python -c "
           import json, sys
           needs = json.load(sys.stdin)
-          failed = [k for k, v in needs.items() if v['result'] == 'failure']
-          if failed:
-              print('Failed Rust jobs:', failed)
+          bad = [k for k, v in needs.items() if v['result'] in ('failure', 'cancelled')]
+          if bad:
+              print('Blocked by:', bad)
               sys.exit(1)
           print('All Rust gates passed or skipped')
           "

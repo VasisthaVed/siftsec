@@ -9,7 +9,7 @@
 | `Trivy` | `sarif_adapter.py` | Recorded (`trivy.sarif`, v0.76.2, redacted) |
 | `Prowler` | `json_adapter.py`, `sarif_adapter.py` | TODO (synthetic fixture only) |
 | `Semgrep` | `sarif_adapter.py` | TODO (synthetic fixture only) |
-| `agent-bom` | `sarif_adapter.py`, `json_adapter.py` | TODO (synthetic fixture only) |
+| `agent-bom` | `sarif_adapter.py`, `json_adapter.py` | TODO (synthetic fixture only). Scenario 3 (`test_graph.py::test_compromised_skill_to_credential_critical`) exercises graph logic against synthetic agent-bom output. Real fixture pending. |
 | `mcp-tool-auditor` | `sarif_adapter.py` | TODO (synthetic fixture only) |
 | `MCPiranha` | `sarif_adapter.py` | TODO (synthetic fixture only) |
 | `agent-audit-kit` | `sarif_adapter.py`, `json_adapter.py` | TODO (synthetic fixture only) |
