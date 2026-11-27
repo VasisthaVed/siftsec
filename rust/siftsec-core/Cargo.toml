@@ -20,7 +20,7 @@ sha2 = "0.10"
 thiserror = "2"
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 proptest = "1"
 
 [profile.release]
