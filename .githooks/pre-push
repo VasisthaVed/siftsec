@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+protected="refs/heads/main"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "$protected" ]; then
+    echo "Direct push to main is blocked. Open a PR." >&2
+    exit 1
+  fi
+done
+exit 0
