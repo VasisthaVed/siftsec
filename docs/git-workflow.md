@@ -15,6 +15,11 @@
   for non-default branches; the default branch itself is
   deletion-protected).
 
+## Linear history
+The `required_linear_history` rule blocks any merge commit on `main`.
+All PRs must be **squash-merged**. `git merge --no-ff` followed by
+`git push origin feat/x:main` is blocked by the ruleset.
+
 ## Required checks
 - `protect-main` requires the aggregate jobs listed in
   `.github/rulesets/main.json` (`quality-and-tests`).
