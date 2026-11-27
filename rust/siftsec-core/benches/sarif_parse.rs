@@ -8,10 +8,9 @@ fn main() {
         let _ = parse_bounded(sample, 64, DEFAULT_MAX_JSON_BYTES).expect("valid sarif");
     }
     let elapsed = start.elapsed();
-    println!("Parsed 1,000 SARIF payloads in {:?}", elapsed);
+    println!("Parsed 1,000 SARIF payloads in {elapsed:?}");
     assert!(
         elapsed.as_millis() < 500,
-        "SARIF parse regression: {:?}",
-        elapsed
+        "SARIF parse regression: {elapsed:?}"
     );
 }

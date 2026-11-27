@@ -212,15 +212,22 @@ mod tests {
         let items_10k = build(10_000);
         let items_100k = build(100_000);
 
+        let mut idx10 = FindingIndex::new();
         let t10 = Instant::now();
-        let out10 = deduplicate(items_10k);
+        for f in items_10k {
+            idx10.insert(f);
+        }
         let d10 = t10.elapsed().as_secs_f64().max(1e-6);
-        assert_eq!(out10.len(), 10_000);
 
+        let mut idx100 = FindingIndex::new();
         let t100 = Instant::now();
-        let out100 = deduplicate(items_100k);
+        for f in items_100k {
+            idx100.insert(f);
+        }
         let d100 = t100.elapsed().as_secs_f64();
-        assert_eq!(out100.len(), 100_000);
+
+        assert_eq!(idx10.into_merged().len(), 10_000);
+        assert_eq!(idx100.into_merged().len(), 100_000);
 
         let ratio = d100 / d10;
         assert!(
