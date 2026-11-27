@@ -5,9 +5,9 @@
 **Correlate, deduplicate, and rank scanner findings by attacker reachability.**
 
 <p>
-  <a href="https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/tensorguard/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status"></a>
-  <a href="https://github.com/VasisthaVed/tensorguard/actions/workflows/rust-gates.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/tensorguard/rust-gates.yml?branch=main&style=flat-square&label=Rust%20Gates" alt="Rust Gates"></a>
-  <a href="https://github.com/VasisthaVed/tensorguard/actions/workflows/wheels.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/tensorguard/wheels.yml?branch=main&style=flat-square&label=Wheels" alt="Wheels"></a>
+  <a href="https://github.com/VasisthaVed/siftsec/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/siftsec/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status"></a>
+  <a href="https://github.com/VasisthaVed/siftsec/actions/workflows/rust-gates.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/siftsec/rust-gates.yml?branch=main&style=flat-square&label=Rust%20Gates" alt="Rust Gates"></a>
+  <a href="https://github.com/VasisthaVed/siftsec/actions/workflows/wheels.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/siftsec/wheels.yml?branch=main&style=flat-square&label=Wheels" alt="Wheels"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.88%2B-DEA584?style=flat-square&logo=rust&logoColor=black" alt="Rust 1.88+"></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json&style=flat-square" alt="Ruff"></a>
