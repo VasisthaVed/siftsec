@@ -11,12 +11,15 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 pyo3 = { version = "0.28", features = ["abi3-py312"] }
+rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = [] } # Never enable unbounded_depth (ADR-023)
 serde_stacker = "0.1"
+sha2 = "0.10"
 thiserror = "2"
 
 [dev-dependencies]
+criterion = "0.5"
 proptest = "1"
 
 [profile.release]
@@ -31,4 +34,8 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
 [[bench]]
 name = "sarif_parse"
+harness = false
+
+[[bench]]
+name = "dedup"
 harness = false
