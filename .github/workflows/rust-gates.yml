@@ -11,12 +11,18 @@ on:
     paths:
       - "rust/**"
       - "deny.toml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_id }}
+  cancel-in-progress: true
 
 jobs:
   rust-test-and-audit:
     name: cargo test + deny (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
@@ -37,6 +43,10 @@ jobs:
             rust/siftsec-core/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('rust/siftsec-core/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Check Rust formatting (cargo fmt)
+        working-directory: rust/siftsec-core
+        run: cargo fmt --all -- --check
 
       - name: Run cargo test --release
         working-directory: rust/siftsec-core

@@ -1,6 +1,20 @@
+<div align="center">
+
 # siftsec
 
-`siftsec` — take scanner output from tools you already run, collapse the duplicates, and rank by what an attacker can actually reach.
+**Correlate, deduplicate, and rank scanner findings by attacker reachability.**
+
+<p>
+  <a href="https://github.com/VasisthaVed/tensorguard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/tensorguard/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status"></a>
+  <a href="https://github.com/VasisthaVed/tensorguard/actions/workflows/rust-gates.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/tensorguard/rust-gates.yml?branch=main&style=flat-square&label=Rust%20Gates" alt="Rust Gates"></a>
+  <a href="https://github.com/VasisthaVed/tensorguard/actions/workflows/wheels.yml"><img src="https://img.shields.io/github/actions/workflow/status/VasisthaVed/tensorguard/wheels.yml?branch=main&style=flat-square&label=Wheels" alt="Wheels"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.88%2B-DEA584?style=flat-square&logo=rust&logoColor=black" alt="Rust 1.88+"></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json&style=flat-square" alt="Ruff"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" alt="License: Apache-2.0"></a>
+</p>
+
+</div>
 
 ---
 
@@ -18,10 +32,29 @@ Running a fourth scanner adds more noise to the same queue. `siftsec` sits downs
 
 ## Quickstart
 
+### CLI (Built-in Posture & Demo)
+
 ```bash
-pip install siftsec
-siftsec ingest --sarif modelaudit.sarif --sarif trivy.sarif --out combined.sarif
-siftsec reach --sarif combined.sarif --cloud-snapshot cloud.json
+uv run siftsec --help
+uv run siftsec scan --demo --output siftsec-demo.sarif
+uv run siftsec list-rules
+```
+
+### Correlation & Reachability Pipeline (Python API)
+
+```python
+from siftsec.ingest import ingest_sarif_bytes, index_findings
+from siftsec.ingest.graph import build_graph_and_score
+
+# 1. Normalize SARIF 2.1.0 outputs from multiple scanners
+findings = ingest_sarif_bytes(modelaudit_sarif, source_tool="modelaudit")
+findings += ingest_sarif_bytes(trivy_sarif, source_tool="trivy")
+
+# 2. Collapse duplicates deterministically across tools
+deduped = index_findings(findings)
+
+# 3. Compute shortest-witness attacker reachability over topology graph
+result = build_graph_and_score(graph_payload)
 ```
 
 ---
@@ -30,37 +63,71 @@ siftsec reach --sarif combined.sarif --cloud-snapshot cloud.json
 
 | What `siftsec` Does | What `siftsec` Does Not Do |
 | :--- | :--- |
-| Ingests SARIF 2.1.0 and native JSON from existing scanners (`ModelAudit`, `Trivy`, `Prowler`, `Semgrep`, `MCPiranha`, `mcpvuln`, `agent-bom`, `mcp-tool-auditor`, `agent-audit-kit`, `Cisco MCP Scanner`) | Does not act as a primary vulnerability or cloud scanner |
-| Deduplicates findings that point to the same component, rule/CWE, and location across tools | Does not ship a web dashboard or SaaS control plane |
-| Ranks findings by attacker reachability over a resource and dependency graph | Does not maintain a persistent database or telemetry backend |
-| Explains each finding's severity, merged tool sources, and graph path in SARIF, JSON, or Markdown | Does not write to, modify, or mutate any cloud account or cluster |
+| Ingests SARIF 2.1.0 and native JSON from existing scanners (`ModelAudit`, `Trivy`, `Prowler`, `Semgrep`, `MCPiranha`, `mcpvuln`, `agent-bom`, `mcp-tool-auditor`, `agent-audit-kit`, `Cisco MCP Scanner`) | Does not replace primary vulnerability, SAST, or cloud posture scanners |
+| Deduplicates findings pointing to the same component, rule/CWE, and location across tools | Does not ship a web dashboard or hosted SaaS control plane |
+| Ranks findings by attacker reachability over a directed resource, skill, and `model_handoff` graph | Does not maintain a persistent database or telemetry backend |
+| Explains each finding's severity, merged `sources`, and shortest witness path | Does not write to, modify, or mutate any cloud account or cluster |
 
 ---
 
-## Architecture
+## Architecture & Performance
 
 ```text
 scanners  -->  ingest  -->  dedup  -->  reachability  -->  score  -->  SARIF
 (already       (10.1)       (10.2)      (10.3)             (10.4)      (10.5)
  running)
 
-  Python / Rust FFI (PyO3, abi3-py312)
-  - parse_json_bounded: byte cap + depth pre-pass + serde_stacker
-  - SipHash-1-3 primary index on untrusted SARIF keys
-  - Pure-Python fallback when native extension is unavailable
+  Python 3.12+ / Rust FFI (PyO3 0.29, abi3-py312)
+  ├── parse_json_bounded : 64 MiB cap + depth pre-pass + serde_stacker
+  ├── index_findings     : SipHash-1-3 primary index on sha256(component|rule|loc)
+  ├── build_graph_and_score : petgraph DiGraph BFS shortest-witness (max_hops=8)
+  └── pure-Python fallback  : identical behavior when siftsec._core is absent
 ```
 
-### How It Works
+### Measured Benchmarks (Criterion, release build)
 
-Each input stream passes through `parse_json_bounded`, which enforces three hard limits before allocating a JSON tree: a 64 MiB byte cap, a byte-level nesting-depth pre-pass (default 64), and `serde_stacker` recursion protection. Normalized findings carry `schema_version = 1` and are keyed deterministically by `sha256(component_hash | rule_or_cwe | location)` using Rust's default SipHash-1-3 `HashMap` to prevent hash-flooding DoS on untrusted scanner inputs. Merged entities preserve every contributing tool in `sources` and sort deterministically before crossing back to Python. A pure-Python fallback implementation provides identical behavior when the compiled `siftsec._core` wheel is absent.
+| Stage | Workload | Measured Latency | Gate |
+| :--- | :--- | :--- | :--- |
+| Cross-tool dedup (`10.2`) | 200 normalized findings | **0.471 ms** | <= 5 ms |
+| Graph BFS reachability (`10.3`) | 1,000 nodes / 5,000 edges | **3.36 ms** | <= 40 ms |
+
+Input streams pass through `parse_json_bounded` before tree allocation (64 MiB byte cap, nesting-depth pre-pass, and `serde_stacker` recursion guard). Deduplication keys use Rust's SipHash-1-3 `HashMap` to prevent hash-flooding DoS on untrusted scanner inputs, and all graph/dedup outputs are sorted deterministically before crossing back to Python.
 
 ---
 
 ## Compatibility
 
 - **Python:** 3.12+
-- **Prebuilt wheels (`abi3-py312`):** `linux-x86_64`, `linux-aarch64`, `macos-arm64`, `macos-x86_64`, `windows-x64`
+- **Prebuilt wheels (`abi3-py312`):** `linux-x86_64`, `macos-arm64`, `windows-x64`
 - **Rust toolchain (source builds):** Rust 1.88+
+
+---
+
+## Development & Verification
+
+```bash
+# Sync Python dev environment
+uv sync --extra dev
+
+# Build and install the native Rust extension locally
+uvx maturin build --release --strip --manifest-path rust/siftsec-core/Cargo.toml --out dist
+uv pip install --force-reinstall dist/siftsec_core-*.whl
+
+# Run all quality, type, and test gates
+uv run ruff check .
+uv run ruff format --check siftsec tests
+uv run mypy siftsec
+uv run pytest
+```
+
+For Rust-only checks:
+
+```bash
+cd rust/siftsec-core
+cargo fmt --all -- --check
+cargo test --release
+cargo clippy --all-targets --all-features -- -D warnings
+```
 
 ---
 
@@ -68,22 +135,16 @@ Each input stream passes through `parse_json_bounded`, which enforces three hard
 
 - Static analysis cannot detect Semantic Compliance Hijacking (0.00% detection rate across evaluated scanners, 2026 research).
 - Reachability uses static graph traversal over collected topology snapshots, not runtime eBPF or agent instrumentation.
-- `siftsec` is not a primary scanner — it composes output from tools you already run in CI.
 - End-to-end alert-reduction and precision benchmark results are pending Phase 10.6 (this line will be updated with measured numbers, or a published negative result, when 10.6 completes).
 
 ---
 
-## Threat Model & Security
+## Threat Model, Security & Docs
 
-- **Vulnerability disclosure:** See [SECURITY.md](SECURITY.md) for the 90-day coordinated disclosure policy.
-- **Threat model:** See [docs/threat-model.md](docs/threat-model.md) for the STRIDE traceability matrix, hostile-input parser bounds, and secret-redaction guarantees.
-- **Migration:** Upgrading from an earlier release? See [MIGRATION.md](MIGRATION.md).
-
----
-
-## Research & Credits
-
-See [docs/research.md](docs/research.md) for the underlying research references, including Rust parsing speedup benchmarks, the Iterative Vector Reconstruction (IVR) inversion literature, and the MCPZoo evaluation corpus (with arXiv identifiers).
+- **Vulnerability disclosure:** [SECURITY.md](SECURITY.md)
+- **Threat model:** [docs/threat-model.md](docs/threat-model.md)
+- **Architecture & ADRs:** [docs/architecture.md](docs/architecture.md) · [docs/decisions.md](docs/decisions.md)
+- **Migration guide:** [MIGRATION.md](MIGRATION.md)
 
 ---
 
