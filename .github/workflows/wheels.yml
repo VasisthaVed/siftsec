@@ -31,7 +31,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-wheels-${{ hashFiles('rust/tensorguard-core/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-wheels-${{ hashFiles('rust/siftsec-core/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-wheels-
 
       - name: Build abi3-py312 wheel via maturin
@@ -41,14 +41,14 @@ jobs:
           args: >-
             --release
             --strip
-            --manifest-path rust/tensorguard-core/Cargo.toml
+            --manifest-path rust/siftsec-core/Cargo.toml
             --out dist
           manylinux: auto
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tensorguard-wheel-${{ matrix.os }}
+          name: siftsec-wheel-${{ matrix.os }}
           path: dist/*.whl
           if-no-files-found: error
 
@@ -61,12 +61,12 @@ jobs:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: tensorguard-wheel-*
+          pattern: siftsec-wheel-*
           merge-multiple: true
           path: dist/
 
       - name: Upload combined wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tensorguard-wheels-all
+          name: siftsec-wheels-all
           path: dist/*.whl

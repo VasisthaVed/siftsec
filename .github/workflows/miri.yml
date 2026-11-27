@@ -22,5 +22,5 @@ jobs:
         with:
           components: miri
       - name: Run cargo miri test
-        working-directory: rust/tensorguard-core
+        working-directory: rust/siftsec-core
         run: cargo miri test

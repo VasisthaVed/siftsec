@@ -4,9 +4,9 @@ from typing import Any
 
 import pytest
 
-from ai_spm._core_loader import HAS_RUST, parse_json_bounded
-from ai_spm._fallback.json_stream import parse_json_bounded as py_parse_json_bounded
-from ai_spm.ingest import ingest_sarif_bytes
+from siftsec._core_loader import HAS_RUST, parse_json_bounded
+from siftsec._fallback.json_stream import parse_json_bounded as py_parse_json_bounded
+from siftsec.ingest import ingest_sarif_bytes
 
 _FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "ingest"
 _REAL_SARIF_FIXTURES = [
@@ -23,8 +23,8 @@ def test_fallback_json_stream_parses_real_sarif_fixtures(fixture_path: Path) -> 
 
 @pytest.mark.parametrize("fixture_path", _REAL_SARIF_FIXTURES)
 def test_rust_python_parity_on_real_sarif_fixtures(fixture_path: Path) -> None:
-    """ADR-030: Both Rust _tg_core and Python _fallback must produce identical output."""
-    assert HAS_RUST is True, "_tg_core extension is not loaded"
+    """ADR-030: Both Rust _core and Python _fallback must produce identical output."""
+    assert HAS_RUST is True, "_core extension is not loaded"
     payload = fixture_path.read_bytes()
     rust_parsed: Any = parse_json_bounded(payload, max_depth=64)
     assert rust_parsed == py_parse_json_bounded(payload, max_depth=64)

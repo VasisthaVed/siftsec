@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from ai_spm.cli import app
-from ai_spm.utils.logger import configure_logging
+from siftsec.cli import app
+from siftsec.utils.logger import configure_logging
 
 runner = CliRunner()
 
@@ -45,10 +45,10 @@ def test_cli_timings_debug_bundle_and_plugins(tmp_path: Path) -> None:
         assert "collect_seconds" in timings_data
         assert "evaluate_seconds" in timings_data
         versions_data = json.loads(zf.read("versions.json"))
-        assert "tensorguard" in versions_data
+        assert "siftsec" in versions_data
 
     res_plugins = runner.invoke(app, ["plugins"])
     assert res_plugins.exit_code == 0
 
-    # Ensure root ai_spm logger still works without raising
-    assert logging.getLogger("ai_spm") is not None
+    # Ensure root siftsec logger still works without raising
+    assert logging.getLogger("siftsec") is not None

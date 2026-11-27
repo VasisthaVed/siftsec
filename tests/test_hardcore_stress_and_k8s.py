@@ -11,14 +11,14 @@ from hypothesis import given
 from hypothesis import strategies as st
 from typer.testing import CliRunner
 
-import ai_spm.rules  # noqa: F401
-from ai_spm import __version__
-from ai_spm.cli import app
-from ai_spm.collectors.base import BaseCollector
-from ai_spm.collectors.k8s import K8sCollector
-from ai_spm.config import settings
-from ai_spm.engine.context import ScanContext
-from ai_spm.engine.models import (
+import siftsec.rules  # noqa: F401
+from siftsec import __version__
+from siftsec.cli import app
+from siftsec.collectors.base import BaseCollector
+from siftsec.collectors.k8s import K8sCollector
+from siftsec.config import settings
+from siftsec.engine.context import ScanContext
+from siftsec.engine.models import (
     CloudProvider,
     CloudResource,
     Finding,
@@ -26,17 +26,17 @@ from ai_spm.engine.models import (
     Severity,
     Status,
 )
-from ai_spm.engine.runner import ScanRunner
-from ai_spm.engine.scoring import exit_code, posture_score
-from ai_spm.engine.suppressions import (
+from siftsec.engine.runner import ScanRunner
+from siftsec.engine.scoring import exit_code, posture_score
+from siftsec.engine.suppressions import (
     SuppressionRule,
     apply_suppressions,
     load_baseline_fingerprints,
 )
-from ai_spm.reporters.json_rep import JSONReporter
-from ai_spm.reporters.markdown import MarkdownReporter, escape_md
-from ai_spm.reporters.sarif import SARIFReporter
-from ai_spm.rules.k8s_gpu import (
+from siftsec.reporters.json_rep import JSONReporter
+from siftsec.reporters.markdown import MarkdownReporter, escape_md
+from siftsec.reporters.sarif import SARIFReporter
+from siftsec.rules.k8s_gpu import (
     K8sGpuTimeSlicingWithoutMigRule,
     K8sMutableImageTagRule,
     K8sNvidiaToolkitCveRule,
@@ -45,7 +45,7 @@ from ai_spm.rules.k8s_gpu import (
 )
 
 runner = CliRunner()
-RULES_DIR = Path(__file__).resolve().parent.parent / "ai_spm" / "rules"
+RULES_DIR = Path(__file__).resolve().parent.parent / "siftsec" / "rules"
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ def test_rules_ast_purity_no_sdk_or_subprocess_imports() -> None:
 
 
 def test_rules_no_hardcoded_shadow_ports_or_model_extensions() -> None:
-    """Shadow-AI ports and model file extensions must live in AISPMConfig, not rules."""
+    """Shadow-AI ports and model file extensions must live in SiftsecConfig, not rules."""
     forbidden_ports = {11434, 6333, 19530}
     forbidden_exts = {".pt", ".pth", ".pkl", ".safetensors"}
     for py_file in sorted(RULES_DIR.glob("*.py")):
@@ -435,7 +435,7 @@ def test_k8s_gpu_time_slicing_and_pod_isolation_rules() -> None:
 
 def _sample_finding(fp: str = "fp-123") -> Finding:
     return Finding(
-        rule_id="AI-SPM-S3-001",
+        rule_id="SIFTSEC-S3-001",
         rule_title="Public S3 model bucket",
         severity=Severity.CRITICAL,
         status=Status.FAILED,
@@ -452,14 +452,14 @@ def test_suppressions_expiry_enforcement_and_scoring() -> None:
     """Active suppression hides from posture_score/exit_code; expired one re-surfaces."""
     f = _sample_finding()
     active_rule = SuppressionRule(
-        rule_id="AI-SPM-S3-001",
+        rule_id="SIFTSEC-S3-001",
         resource="arn:aws:s3:::models",
         reason="Legacy bucket migration",
         expires=date(2026, 12, 31),
         owner="secops",
     )
     expired_rule = SuppressionRule(
-        rule_id="AI-SPM-S3-001",
+        rule_id="SIFTSEC-S3-001",
         resource="arn:aws:s3:::models",
         reason="Old waiver",
         expires=date(2025, 1, 1),
@@ -505,7 +505,7 @@ def test_cli_baseline_create_scan_and_mcp_lock(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    lock_file = tmp_path / ".tensorguard-lock.json"
+    lock_file = tmp_path / ".siftsec-lock.json"
     res3 = runner.invoke(
         app,
         ["mcp-lock", "--path", str(tmp_path), "--output", str(lock_file)],

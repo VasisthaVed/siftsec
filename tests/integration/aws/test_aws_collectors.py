@@ -7,16 +7,16 @@ import pytest
 from botocore.stub import Stubber
 from moto import mock_aws
 
-from ai_spm.collectors.aws.bedrock import BedrockCollector
-from ai_spm.collectors.aws.client import AwsClientFactory, AwsIdentity, resolve_identity
-from ai_spm.collectors.aws.ec2 import EC2SecurityGroupCollector
-from ai_spm.collectors.aws.ecr import ECRCollector
-from ai_spm.collectors.aws.iam import IAMCollector
-from ai_spm.collectors.aws.opensearch import OpenSearchCollector
-from ai_spm.collectors.aws.orchestrator import AwsOrchestrator
-from ai_spm.collectors.aws.sagemaker import SageMakerCollector
-from ai_spm.config import AISPMConfig
-from ai_spm.engine.context import ScanContext
+from siftsec.collectors.aws.bedrock import BedrockCollector
+from siftsec.collectors.aws.client import AwsClientFactory, AwsIdentity, resolve_identity
+from siftsec.collectors.aws.ec2 import EC2SecurityGroupCollector
+from siftsec.collectors.aws.ecr import ECRCollector
+from siftsec.collectors.aws.iam import IAMCollector
+from siftsec.collectors.aws.opensearch import OpenSearchCollector
+from siftsec.collectors.aws.orchestrator import AwsOrchestrator
+from siftsec.collectors.aws.sagemaker import SageMakerCollector
+from siftsec.config import SiftsecConfig
+from siftsec.engine.context import ScanContext
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +30,7 @@ def _fake_aws_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_ecr_and_ec2_collectors_with_moto() -> None:
     with mock_aws():
-        cfg = AISPMConfig()
+        cfg = SiftsecConfig()
         factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), cfg)
         identity = resolve_identity(factory)
 
@@ -71,7 +71,7 @@ def test_ecr_and_ec2_collectors_with_moto() -> None:
 
 def test_sagemaker_and_iam_collectors_with_moto() -> None:
     with mock_aws():
-        cfg = AISPMConfig()
+        cfg = SiftsecConfig()
         factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), cfg)
         identity = resolve_identity(factory)
 
@@ -124,7 +124,7 @@ def test_sagemaker_and_iam_collectors_with_moto() -> None:
 
 
 def test_bedrock_and_opensearch_with_stubber() -> None:
-    cfg = AISPMConfig()
+    cfg = SiftsecConfig()
     session = boto3.Session(region_name="us-east-1")
     factory = AwsClientFactory(session, cfg)
     identity = AwsIdentity(
@@ -246,7 +246,7 @@ def test_bedrock_and_opensearch_with_stubber() -> None:
 
 def test_orchestrator_end_to_end_moto() -> None:
     with mock_aws():
-        cfg = AISPMConfig()
+        cfg = SiftsecConfig()
         factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), cfg)
         s3 = factory.client("s3", "us-east-1")
         s3.create_bucket(Bucket="corp-model-bucket")

@@ -5,15 +5,15 @@ import pytest
 from botocore.stub import Stubber
 from moto import mock_aws
 
-from ai_spm.collectors.aws.base import ABSENT, AWSBaseCollector, ResourceGoneError
-from ai_spm.collectors.aws.classify import classify_ai_workload
-from ai_spm.collectors.aws.client import AwsClientFactory, AwsIdentity, resolve_identity
-from ai_spm.collectors.aws.s3 import S3Collector
-from ai_spm.config import AISPMConfig
-from ai_spm.engine.models import CloudResource, Status
-from ai_spm.engine.runner import ScanRunner
-from ai_spm.errors import CredentialsError
-from ai_spm.utils.aws_arn import build_arn, parse_partition_from_arn
+from siftsec.collectors.aws.base import ABSENT, AWSBaseCollector, ResourceGoneError
+from siftsec.collectors.aws.classify import classify_ai_workload
+from siftsec.collectors.aws.client import AwsClientFactory, AwsIdentity, resolve_identity
+from siftsec.collectors.aws.s3 import S3Collector
+from siftsec.config import SiftsecConfig
+from siftsec.engine.models import CloudResource, Status
+from siftsec.engine.runner import ScanRunner
+from siftsec.errors import CredentialsError
+from siftsec.utils.aws_arn import build_arn, parse_partition_from_arn
 
 
 @pytest.fixture(autouse=True)
@@ -34,14 +34,14 @@ def test_arn_helpers_and_credentials_error(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.delenv("AWS_SESSION_TOKEN", raising=False)
     monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
 
-    factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), AISPMConfig())
+    factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), SiftsecConfig())
     with pytest.raises(CredentialsError):
         resolve_identity(factory)
 
 
 def test_client_factory_identity_and_user_agent() -> None:
     with mock_aws():
-        cfg = AISPMConfig()
+        cfg = SiftsecConfig()
         factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), cfg)
         identity = resolve_identity(factory)
         assert identity.partition == "aws"
@@ -50,7 +50,7 @@ def test_client_factory_identity_and_user_agent() -> None:
         c1 = factory.client("s3", "us-east-1")
         c2 = factory.client("s3", "us-east-1")
         assert c1 is c2
-        assert "TensorGuard/" in c1.meta.config.user_agent_extra
+        assert "Siftsec/" in c1.meta.config.user_agent_extra
 
 
 def test_base_collector_pagination_and_error_barrier() -> None:
@@ -61,7 +61,7 @@ def test_base_collector_pagination_and_error_barrier() -> None:
             return []
 
     with mock_aws():
-        cfg = AISPMConfig()
+        cfg = SiftsecConfig()
         factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), cfg)
         identity = AwsIdentity(
             account_id="123456789012", arn="arn:aws:iam::123:root", partition="aws"
@@ -112,12 +112,12 @@ def test_base_collector_pagination_and_error_barrier() -> None:
 
 
 def test_classify_ai_workload() -> None:
-    cfg = AISPMConfig()
+    cfg = SiftsecConfig()
     assert classify_ai_workload("s3", "corp-model-weights", {}, cfg)[0] is True
     assert classify_ai_workload("s3", "remodel-invoices", {}, cfg)[0] is False
     assert classify_ai_workload("s3", "my-bucket", {"workload": "AI"}, cfg)[0] is True
     assert (
-        classify_ai_workload("s3", "corp-model-weights", {"tensorguard:ignore": "true"}, cfg)[0]
+        classify_ai_workload("s3", "corp-model-weights", {"siftsec:ignore": "true"}, cfg)[0]
         is False
     )
     assert classify_ai_workload("bedrock", "anything", {}, cfg)[0] is True
@@ -125,7 +125,7 @@ def test_classify_ai_workload() -> None:
 
 def test_s3_collector_with_moto() -> None:
     with mock_aws():
-        cfg = AISPMConfig()
+        cfg = SiftsecConfig()
         factory = AwsClientFactory(boto3.Session(region_name="us-east-1"), cfg)
         identity = resolve_identity(factory)
 
@@ -184,14 +184,14 @@ def test_s3_collector_with_moto() -> None:
         failed = {(f.resource_id, f.rule_id) for f in findings if f.status is Status.FAILED}
         passed = {(f.resource_id, f.rule_id) for f in findings if f.status is Status.PASSED}
 
-        assert ("ai-safetensors-prod", "AI-SPM-S3-001") in passed
-        assert ("ai-safetensors-prod", "AI-SPM-S3-002") in passed
-        assert ("ml-weights-west", "AI-SPM-S3-001") in failed
-        assert ("ml-weights-west", "AI-SPM-S3-004") in failed
+        assert ("ai-safetensors-prod", "SIFTSEC-S3-001") in passed
+        assert ("ai-safetensors-prod", "SIFTSEC-S3-002") in passed
+        assert ("ml-weights-west", "SIFTSEC-S3-001") in failed
+        assert ("ml-weights-west", "SIFTSEC-S3-004") in failed
 
 
 def test_s3_unknown_encryption_emits_error_not_fail() -> None:
-    from ai_spm.collectors.base import BaseCollector
+    from siftsec.collectors.base import BaseCollector
 
     class _GapCollector(BaseCollector):
         def collect(self) -> list[CloudResource]:
@@ -206,6 +206,6 @@ def test_s3_unknown_encryption_emits_error_not_fail() -> None:
             ]
 
     findings = ScanRunner(collector=_GapCollector(), services=["s3"]).run()
-    s3_001 = next(f for f in findings if f.rule_id == "AI-SPM-S3-001")
+    s3_001 = next(f for f in findings if f.rule_id == "SIFTSEC-S3-001")
     assert s3_001.status is Status.ERROR
     assert s3_001.error_code == "AccessDenied"

@@ -4,11 +4,11 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from ai_spm.cli import app
-from ai_spm.collectors.local.models import LocalModelCollector
-from ai_spm.engine.models import CloudProvider, CloudResource, Status
-from ai_spm.reporters.aibom import AIBOMReporter
-from ai_spm.rules.supply_chain import (
+from siftsec.cli import app
+from siftsec.collectors.local.models import LocalModelCollector
+from siftsec.engine.models import CloudProvider, CloudResource, Status
+from siftsec.reporters.aibom import AIBOMReporter
+from siftsec.rules.supply_chain import (
     SupplyChainLicenseRule,
     SupplyChainModelAllowlistRule,
     SupplyChainPinnedRevisionRule,
@@ -32,7 +32,7 @@ def test_hf_cache_provenance_license_and_allowlist_rules(tmp_path: Path) -> None
     (snap_dir / "config.json").write_text(json.dumps({"license": "llama3"}), encoding="utf-8")
 
     digest = hashlib.sha256(payload).hexdigest()
-    (tmp_path / ".tensorguard-models.lock").write_text(
+    (tmp_path / ".siftsec-models.lock").write_text(
         json.dumps({"models": [{"sha256": digest}]}),
         encoding="utf-8",
     )

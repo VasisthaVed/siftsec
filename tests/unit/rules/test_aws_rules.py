@@ -2,8 +2,8 @@
 
 import shlex
 
-from ai_spm.collectors.base import BaseCollector
-from ai_spm.engine.attrs import (
+from siftsec.collectors.base import BaseCollector
+from siftsec.engine.attrs import (
     BedrockAccountConfigAttrs,
     BedrockAgentAttrs,
     BedrockDataSourceAttrs,
@@ -18,9 +18,9 @@ from ai_spm.engine.attrs import (
     SageMakerNotebookAttrs,
     SageMakerTrainingJobAttrs,
 )
-from ai_spm.engine.models import CloudResource, Status
-from ai_spm.engine.runner import ScanRunner
-from ai_spm.rules.remediation import sh, tf
+from siftsec.engine.models import CloudResource, Status
+from siftsec.engine.runner import ScanRunner
+from siftsec.rules.remediation import sh, tf
 
 
 class _ListCollector(BaseCollector):
@@ -108,16 +108,16 @@ def test_sagemaker_rules_and_kind_dispatch() -> None:
     failed = {(f.resource_id, f.rule_id) for f in findings if f.status is Status.FAILED}
     passed = {(f.resource_id, f.rule_id) for f in findings if f.status is Status.PASSED}
 
-    assert ("nb-bad", "AI-SPM-SAGEMAKER-001") in failed
-    assert ("nb-bad", "AI-SPM-SAGEMAKER-002") in failed
-    assert ("nb-bad", "AI-SPM-SAGEMAKER-003") in failed
-    assert ("nb-bad", "AI-SPM-SAGEMAKER-007") in failed
-    assert ("nb-good", "AI-SPM-SAGEMAKER-002") in passed
-    assert ("ep-bad", "AI-SPM-SAGEMAKER-004") in failed
-    assert ("job-bad", "AI-SPM-SAGEMAKER-005") in failed
-    assert ("dom-bad", "AI-SPM-SAGEMAKER-006") in failed
+    assert ("nb-bad", "SIFTSEC-SAGEMAKER-001") in failed
+    assert ("nb-bad", "SIFTSEC-SAGEMAKER-002") in failed
+    assert ("nb-bad", "SIFTSEC-SAGEMAKER-003") in failed
+    assert ("nb-bad", "SIFTSEC-SAGEMAKER-007") in failed
+    assert ("nb-good", "SIFTSEC-SAGEMAKER-002") in passed
+    assert ("ep-bad", "SIFTSEC-SAGEMAKER-004") in failed
+    assert ("job-bad", "SIFTSEC-SAGEMAKER-005") in failed
+    assert ("dom-bad", "SIFTSEC-SAGEMAKER-006") in failed
     # Ensure notebook rule did not fire on domain
-    assert all(f.resource_id != "dom-bad" or f.rule_id == "AI-SPM-SAGEMAKER-006" for f in findings)
+    assert all(f.resource_id != "dom-bad" or f.rule_id == "SIFTSEC-SAGEMAKER-006" for f in findings)
 
 
 def test_bedrock_ecr_opensearch_iam_and_shadow_rules() -> None:
@@ -204,16 +204,16 @@ def test_bedrock_ecr_opensearch_iam_and_shadow_rules() -> None:
     failed_ids = {f.rule_id for f in findings if f.status is Status.FAILED}
     passed_ids = {f.rule_id for f in findings if f.status is Status.PASSED}
 
-    assert "AI-SPM-BEDROCK-001" in failed_ids
-    assert "AI-SPM-BEDROCK-002" in failed_ids
-    assert "AI-SPM-BEDROCK-004" in failed_ids
-    assert "AI-SPM-ECR-001" in passed_ids  # ENHANCED scanning overrides scanOnPush=False
-    assert "AI-SPM-ECR-002" in failed_ids
-    assert "AI-SPM-ECR-003" in failed_ids
-    assert "AI-SPM-OPENSEARCH-002" in failed_ids
-    assert "AI-SPM-OPENSEARCH-003" in failed_ids
-    assert "AI-SPM-OPENSEARCH-004" in failed_ids
-    assert "AI-SPM-OPENSEARCH-007" in failed_ids
-    assert "AI-SPM-IAM-002" in failed_ids
-    assert "AI-SPM-IAM-003" in failed_ids
-    assert "AI-SPM-SHADOW-001" in failed_ids
+    assert "SIFTSEC-BEDROCK-001" in failed_ids
+    assert "SIFTSEC-BEDROCK-002" in failed_ids
+    assert "SIFTSEC-BEDROCK-004" in failed_ids
+    assert "SIFTSEC-ECR-001" in passed_ids  # ENHANCED scanning overrides scanOnPush=False
+    assert "SIFTSEC-ECR-002" in failed_ids
+    assert "SIFTSEC-ECR-003" in failed_ids
+    assert "SIFTSEC-OPENSEARCH-002" in failed_ids
+    assert "SIFTSEC-OPENSEARCH-003" in failed_ids
+    assert "SIFTSEC-OPENSEARCH-004" in failed_ids
+    assert "SIFTSEC-OPENSEARCH-007" in failed_ids
+    assert "SIFTSEC-IAM-002" in failed_ids
+    assert "SIFTSEC-IAM-003" in failed_ids
+    assert "SIFTSEC-SHADOW-001" in failed_ids

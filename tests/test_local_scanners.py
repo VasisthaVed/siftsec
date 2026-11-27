@@ -9,13 +9,13 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from ai_spm.cli import app
-from ai_spm.collectors.local.mcp import LocalMcpCollector
-from ai_spm.collectors.local.models import LocalModelCollector
-from ai_spm.config import AISPMConfig
-from ai_spm.engine.models import Status
-from ai_spm.engine.runner import ScanRunner
-from ai_spm.scanners.pickle_scanner import scan_model_file, scan_pickle_stream
+from siftsec.cli import app
+from siftsec.collectors.local.mcp import LocalMcpCollector
+from siftsec.collectors.local.models import LocalModelCollector
+from siftsec.config import SiftsecConfig
+from siftsec.engine.models import Status
+from siftsec.engine.runner import ScanRunner
+from siftsec.scanners.pickle_scanner import scan_model_file, scan_pickle_stream
 
 runner = CliRunner()
 
@@ -44,7 +44,7 @@ def test_pickle_scanner_never_calls_pickle_loads(monkeypatch: pytest.MonkeyPatch
         raise AssertionError("pickle.loads must never be called!")
 
     monkeypatch.setattr(pickle, "loads", _forbidden)
-    cfg = AISPMConfig()
+    cfg = SiftsecConfig()
 
     res = scan_pickle_stream(io.BytesIO(_craft_malicious_pickle_bytes()), cfg)
     assert res.error is None
@@ -61,7 +61,7 @@ def test_pickle_scanner_never_calls_pickle_loads(monkeypatch: pytest.MonkeyPatch
 
 
 def test_pickle_truncated_stream_reports_error_safely() -> None:
-    cfg = AISPMConfig()
+    cfg = SiftsecConfig()
     res = scan_pickle_stream(io.BytesIO(b"\x80\x04\x8c\x10short"), cfg)
     assert res.error is not None
     assert res.error.startswith("parse_error:")
@@ -72,7 +72,7 @@ def test_torch_zip_and_zip_bomb_detection(tmp_path: Path) -> None:
     with zipfile.ZipFile(pt_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("archive/data.pkl", _craft_malicious_pickle_bytes())
 
-    cfg = AISPMConfig()
+    cfg = SiftsecConfig()
     attrs = scan_model_file(pt_path, cfg)
     assert attrs.format == "torch_zip"
     assert any(h.module == "os" for h in attrs.pickle_hits)
@@ -82,7 +82,7 @@ def test_torch_zip_and_zip_bomb_detection(tmp_path: Path) -> None:
     with zipfile.ZipFile(bomb_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("archive/data.pkl", b"A" * 500_000)
 
-    strict_cfg = AISPMConfig(max_zip_ratio=5.0)
+    strict_cfg = SiftsecConfig(max_zip_ratio=5.0)
     bomb_attrs = scan_model_file(bomb_path, strict_cfg)
     assert bomb_attrs.zip_ratio_exceeded is True
     assert bomb_attrs.scan_error == "zip_limit_exceeded"
@@ -96,7 +96,7 @@ def test_safetensors_header_validation(tmp_path: Path) -> None:
     bad = tmp_path / "bad.safetensors"
     bad.write_bytes(struct.pack("<Q", 999_999) + b"{}")
 
-    cfg = AISPMConfig()
+    cfg = SiftsecConfig()
     assert scan_model_file(good, cfg).safetensors_header_ok is True
     assert scan_model_file(bad, cfg).safetensors_header_ok is False
 
@@ -125,7 +125,7 @@ def test_mcp_auditor_detects_unpinned_secrets_unicode_and_drift(tmp_path: Path) 
         encoding="utf-8",
     )
 
-    lock_path = tmp_path / ".tensorguard-lock.json"
+    lock_path = tmp_path / ".siftsec-lock.json"
     lock_path.write_text(
         json.dumps({str(mcp_cfg.resolve()): {"evil-server": "0" * 64}}),
         encoding="utf-8",
@@ -135,11 +135,11 @@ def test_mcp_auditor_detects_unpinned_secrets_unicode_and_drift(tmp_path: Path) 
     findings = ScanRunner(collector=collector, services=["mcp"]).run()
     failed_ids = {f.rule_id for f in findings if f.status is Status.FAILED}
 
-    assert "AI-SPM-MCP-002" in failed_ids  # unpinned npx
-    assert "AI-SPM-MCP-003" in failed_ids  # secret key in env
-    assert "AI-SPM-MCP-004" in failed_ids  # unicode + base64 injection
-    assert "AI-SPM-MCP-005" in failed_ids  # lockfile drift
-    assert "AI-SPM-MCP-006" in failed_ids  # http:// non-TLS
+    assert "SIFTSEC-MCP-002" in failed_ids  # unpinned npx
+    assert "SIFTSEC-MCP-003" in failed_ids  # secret key in env
+    assert "SIFTSEC-MCP-004" in failed_ids  # unicode + base64 injection
+    assert "SIFTSEC-MCP-005" in failed_ids  # lockfile drift
+    assert "SIFTSEC-MCP-006" in failed_ids  # http:// non-TLS
 
     # Secret value must NEVER appear in any serialized finding!
     for f in findings:
@@ -153,7 +153,7 @@ def test_cli_local_scan_malicious_and_clean(tmp_path: Path) -> None:
 
     res_bad = runner.invoke(app, ["scan", "--local", "--path", str(bad_dir)])
     assert res_bad.exit_code == 1
-    assert "AI-SPM-LOCAL-001" in res_bad.output
+    assert "SIFTSEC-LOCAL-001" in res_bad.output
 
     clean_dir = tmp_path / "clean"
     clean_dir.mkdir()

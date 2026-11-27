@@ -3,10 +3,10 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from ai_spm.cli import app
-from ai_spm.engine.diff import diff_scans
-from ai_spm.engine.graph import evaluate_attack_paths
-from ai_spm.engine.models import CloudProvider, CloudResource, Severity, Status
+from siftsec.cli import app
+from siftsec.engine.diff import diff_scans
+from siftsec.engine.graph import evaluate_attack_paths
+from siftsec.engine.models import CloudProvider, CloudResource, Severity, Status
 
 runner = CliRunner()
 
@@ -78,9 +78,9 @@ def test_attack_path_correlation_detects_all_three_critical_chains() -> None:
 
     findings = evaluate_attack_paths(resources)
     assert {f.rule_id for f in findings} == {
-        "AI-SPM-PATH-001",
-        "AI-SPM-PATH-002",
-        "AI-SPM-PATH-003",
+        "SIFTSEC-PATH-001",
+        "SIFTSEC-PATH-002",
+        "SIFTSEC-PATH-003",
     }
     for f in findings:
         assert f.status == Status.FAILED
@@ -98,14 +98,14 @@ def test_scan_diff_and_compliance_cli(tmp_path: Path) -> None:
                 "findings": [
                     {
                         "fingerprint": "fp-fixed",
-                        "rule_id": "AI-SPM-S3-001",
+                        "rule_id": "SIFTSEC-S3-001",
                         "resource_arn": "arn:1",
                         "status": "FAILED",
                         "severity": "HIGH",
                     },
                     {
                         "fingerprint": "fp-same",
-                        "rule_id": "AI-SPM-S3-002",
+                        "rule_id": "SIFTSEC-S3-002",
                         "resource_arn": "arn:2",
                         "status": "FAILED",
                         "severity": "MEDIUM",
@@ -121,14 +121,14 @@ def test_scan_diff_and_compliance_cli(tmp_path: Path) -> None:
                 "findings": [
                     {
                         "fingerprint": "fp-same",
-                        "rule_id": "AI-SPM-S3-002",
+                        "rule_id": "SIFTSEC-S3-002",
                         "resource_arn": "arn:2",
                         "status": "FAILED",
                         "severity": "HIGH",
                     },
                     {
                         "fingerprint": "fp-new",
-                        "rule_id": "AI-SPM-K8S-001",
+                        "rule_id": "SIFTSEC-K8S-001",
                         "resource_arn": "k8s://node/1",
                         "status": "FAILED",
                         "severity": "CRITICAL",

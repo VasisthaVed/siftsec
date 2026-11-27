@@ -1,7 +1,7 @@
-# AI-SPM Scanner: Product Requirements Document (PRD)
+# SIFTSEC Scanner: Product Requirements Document (PRD)
 
 ## 1. Product Summary
-**Product Name:** AI-SPM (AI Security Posture Management) Scanner  
+**Product Name:** SIFTSEC (AI Security Posture Management) Scanner  
 **Status:** In Development (Phase 1-5)  
 **Primary Language/Runtime:** Python 3.12+ (managed with `uv`)  
 **Target Environment:** AWS Cloud (S3, SageMaker, Bedrock, ECR, OpenSearch / Vector DBs)  
@@ -35,7 +35,7 @@ Enterprise adoption of Large Language Models (LLMs), generative AI agents, and c
 - **FR-3:** Identify untagged Shadow AI resources running in the target account.
 
 ### 4.2 Security Rule Evaluation
-- **FR-4:** Execute detection rules matching `docs/ai-spm-rules-catalog.md` across S3, SageMaker, Bedrock, ECR, and OpenSearch.
+- **FR-4:** Execute detection rules matching `docs/siftsec-rules-catalog.md` across S3, SageMaker, Bedrock, ECR, and OpenSearch.
 - **FR-5:** Tag every finding with:
   - Severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFORMATIONAL`)
   - Target AWS Resource ARN & ID
@@ -45,7 +45,7 @@ Enterprise adoption of Large Language Models (LLMs), generative AI agents, and c
   - OWASP Top 10 for LLM vulnerability categories
 
 ### 4.3 CLI & UX
-- **FR-6:** Provide a polished Typer CLI (`ai-spm scan`, `ai-spm list-rules`).
+- **FR-6:** Provide a polished Typer CLI (`siftsec scan`, `siftsec list-rules`).
 - **FR-7:** Live terminal rendering with `rich` tables, progress meters, and color-coded severity summaries.
 - **FR-8:** Support multiple output formats:
   - Console (`terminal`)

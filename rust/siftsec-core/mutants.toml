@@ -1,0 +1,9 @@
+# Placeholder configuration for cargo-mutants (Phase 10.2+ mutation testing gate).
+# Run manually on Linux/macOS/Windows with:
+#   cargo mutants --manifest-path rust/siftsec-core/Cargo.toml
+#
+# Exclude PyO3 FFI glue where Python runtime is required to exercise mutations.
+exclude_globs = [
+    "src/lib.rs",
+]
+timeout = 60

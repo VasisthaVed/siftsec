@@ -1,4 +1,4 @@
-name: TensorGuard CI
+name: Siftsec CI
 
 on:
   push:
@@ -31,9 +31,9 @@ jobs:
         run: |
           pip install maturin
           maturin build --release --strip \
-            --manifest-path rust/tensorguard-core/Cargo.toml \
+            --manifest-path rust/siftsec-core/Cargo.toml \
             --out dist
-          uv pip install --force-reinstall dist/tensorguard_core-*.whl
+          uv pip install --force-reinstall dist/siftsec_core-*.whl
 
       - name: Run Ruff lint & format check
         run: |
@@ -41,24 +41,24 @@ jobs:
           uv run ruff format --check .
 
       - name: Run Mypy strict type check
-        run: uv run mypy ai_spm
+        run: uv run mypy siftsec
 
       - name: Run full pytest suite (including Rust parity)
-        run: uv run pytest --cov=ai_spm --cov-report=term-missing -v
+        run: uv run pytest --cov=siftsec --cov-report=term-missing -v
 
       - name: Generate demo SARIF report
-        run: uv run ai-spm scan --demo --output tensorguard-demo.sarif || true
+        run: uv run siftsec scan --demo --output siftsec-demo.sarif || true
 
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: tensorguard-demo.sarif
+          sarif_file: siftsec-demo.sarif
         continue-on-error: true
 
       - name: Upload SARIF as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tensorguard-sarif
-          path: tensorguard-demo.sarif
+          name: siftsec-sarif
+          path: siftsec-demo.sarif
           if-no-files-found: ignore

@@ -1,12 +1,12 @@
 from types import SimpleNamespace
 from typing import Any
 
-from ai_spm.collectors.base import ProviderCollector, provider_registry
-from ai_spm.collectors.gcp import GcpCollector
-from ai_spm.engine.context import ScanContext
-from ai_spm.engine.models import CloudProvider, CloudResource, Status
-from ai_spm.engine.runner import ScanRunner
-from ai_spm.rules.gcp import (
+from siftsec.collectors.base import ProviderCollector, provider_registry
+from siftsec.collectors.gcp import GcpCollector
+from siftsec.engine.context import ScanContext
+from siftsec.engine.models import CloudProvider, CloudResource, Status
+from siftsec.engine.runner import ScanRunner
+from siftsec.rules.gcp import (
     GcpGcsCmekAndVersioningRule,
     GcpGcsPublicAccessPreventionRule,
     GcpGcsUniformAccessRule,
@@ -158,12 +158,12 @@ def test_gcp_rules_pass_fail_and_gap_error() -> None:
         gaps={"public_access_prevention": "PermissionDenied"},
         metadata={"kind": "gcp_gcs_bucket"},
     )
-    from ai_spm.collectors.base import BaseCollector
+    from siftsec.collectors.base import BaseCollector
 
     class _OneCollector(BaseCollector):
         def collect(self) -> list[CloudResource]:
             return [gap_bucket]
 
     findings = ScanRunner(collector=_OneCollector(), context=ScanContext()).run()
-    pap_finding = [f for f in findings if f.rule_id == "AI-SPM-GCP-004"][0]
+    pap_finding = [f for f in findings if f.rule_id == "SIFTSEC-GCP-004"][0]
     assert pap_finding.status == Status.ERROR

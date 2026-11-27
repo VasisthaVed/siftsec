@@ -6,17 +6,17 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from ai_spm.cli import app
-from ai_spm.collectors.mock import MockCollector
-from ai_spm.config import settings
-from ai_spm.engine.models import CoverageGap, ScanSummary, Severity, Status
-from ai_spm.engine.runner import ScanRunner
-from ai_spm.engine.scoring import posture_score
-from ai_spm.errors import AISPMError
-from ai_spm.reporters.json_rep import JSONReporter
-from ai_spm.reporters.markdown import MarkdownReporter
-from ai_spm.reporters.sarif import SARIFReporter
-from ai_spm.utils.fs import atomic_write_secure
+from siftsec.cli import app
+from siftsec.collectors.mock import MockCollector
+from siftsec.config import settings
+from siftsec.engine.models import CoverageGap, ScanSummary, Severity, Status
+from siftsec.engine.runner import ScanRunner
+from siftsec.engine.scoring import posture_score
+from siftsec.errors import AISPMError
+from siftsec.reporters.json_rep import JSONReporter
+from siftsec.reporters.markdown import MarkdownReporter
+from siftsec.reporters.sarif import SARIFReporter
+from siftsec.utils.fs import atomic_write_secure
 
 runner = CliRunner()
 
@@ -50,24 +50,24 @@ def test_json_markdown_and_sarif_reporters() -> None:
     assert len(parsed_json["findings"]) == len(summary.findings)
 
     md_out = MarkdownReporter().export(summary)
-    assert "TensorGuard AI-SPM Report" in md_out
+    assert "Siftsec SIFTSEC Report" in md_out
     assert "Coverage Gaps" in md_out
 
     sarif_out = SARIFReporter().export(summary.findings)
     sarif_doc = json.loads(sarif_out)
     assert sarif_doc["version"] == "2.1.0"
     first_result = sarif_doc["runs"][0]["results"][0]
-    assert "tensorguardFingerprint/v1" in first_result["partialFingerprints"]
+    assert "siftsecFingerprint/v1" in first_result["partialFingerprints"]
     assert first_result["locations"][0]["logicalLocations"][0]["kind"] == "resource"
 
 
 def test_markdown_escapes_hostile_resource_names() -> None:
     from datetime import UTC, datetime
 
-    from ai_spm.engine.models import Finding
+    from siftsec.engine.models import Finding
 
     hostile = Finding(
-        rule_id="AI-SPM-S3-001",
+        rule_id="SIFTSEC-S3-001",
         rule_title="Test",
         service="s3",
         resource_arn="arn:aws:s3:::evil|@here<script>",
@@ -107,11 +107,11 @@ def test_atomic_write_secure(tmp_path: Path) -> None:
 def test_cli_doctor_version_and_formats() -> None:
     res_ver = runner.invoke(app, ["version"])
     assert res_ver.exit_code == 0
-    assert "tensorguard" in res_ver.output
+    assert "siftsec" in res_ver.output
 
     res_doc = runner.invoke(app, ["doctor"])
     assert res_doc.exit_code == 0
-    assert "TensorGuard Doctor" in res_doc.output
+    assert "Siftsec Doctor" in res_doc.output
 
     res_json = runner.invoke(app, ["scan", "--demo", "--format", "json", "--fail-on", "CRITICAL"])
     assert res_json.exit_code == 1

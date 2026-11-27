@@ -1,6 +1,6 @@
-# AI-SPM Scanner: Detailed Engineering Roadmap & Implementation Plan
+# SIFTSEC Scanner: Detailed Engineering Roadmap & Implementation Plan
 
-This document expands the high-level roadmap into a complete, phase-by-phase implementation blueprint for building the **AI-SPM (AI Security Posture Management) Scanner**.
+This document expands the high-level roadmap into a complete, phase-by-phase implementation blueprint for building the **SIFTSEC (AI Security Posture Management) Scanner**.
 
 ---
 
@@ -9,7 +9,7 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
 ```
 +-----------------------------------------------------------------------------------+
 |                                  Typer CLI                                        |
-|  ai-spm scan --services s3,sagemaker,bedrock,ecr,opensearch --output report.json  |
+|  siftsec scan --services s3,sagemaker,bedrock,ecr,opensearch --output report.json  |
 +-----------------------------------------------------------------------------------+
                                           |
                                           v
@@ -65,7 +65,7 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
      - Core: `boto3 >= 1.34.0`, `pydantic >= 2.6.0`, `typer[all] >= 0.12.0`, `rich >= 13.7.0`.
      - Dev/Test: `pytest >= 8.0.0`, `pytest-cov`, `pytest-asyncio`, `moto[all] >= 5.0.0`, `ruff >= 0.3.0`, `mypy >= 1.8.0`.
    - Setup `.gitignore`, `README.md`, and `ruff.toml` / `pyproject.toml` linting configurations.
-2. **Pydantic Data Models (`ai_spm/engine/models.py`):**
+2. **Pydantic Data Models (`siftsec/engine/models.py`):**
    - `Severity` Enum: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFORMATIONAL`.
    - `Status` Enum: `PASSED`, `FAILED`, `ERROR`, `SKIPPED`.
    - `AWSResource`:
@@ -98,11 +98,11 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
          region: str
          timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
      ```
-3. **Abstract BaseRule Class (`ai_spm/rules/base.py`):**
+3. **Abstract BaseRule Class (`siftsec/rules/base.py`):**
    - Provide abstract interface with metadata properties:
      - `rule_id`, `title`, `description`, `severity`, `service`, `mitre_atlas`, `owasp_llm`.
      - Abstract method: `evaluate(self, resource: AWSResource) -> Finding`.
-4. **Rule Registry (`ai_spm/rules/registry.py`):**
+4. **Rule Registry (`siftsec/rules/registry.py`):**
    - Automatic registration and filtering of rules by service, minimum severity, or rule ID.
 
 ---
@@ -112,10 +112,10 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
 **Goal:** Create an enterprise-grade Boto3 wrapper capable of automatic pagination, credential handling, rate-limiting backoff, and graceful degradation on permission denials.
 
 #### Tasks & Deliverables:
-1. **Central AWS Session & Client Factory (`ai_spm/collectors/aws_client.py`):**
+1. **Central AWS Session & Client Factory (`siftsec/collectors/aws_client.py`):**
    - Automatic credential resolution (Environment variables, `~/.aws/credentials`, IAM Role assumption, AWS SSO).
    - Configured with `botocore.config.Config(retries={'max_attempts': 5, 'mode': 'adaptive'})`.
-2. **Base Collector (`ai_spm/collectors/base.py`):**
+2. **Base Collector (`siftsec/collectors/base.py`):**
    - Handles multi-region iteration.
    - Common safe execution decorator `@handle_aws_errors` catching `ClientError` (specifically `AccessDeniedException`, `UnauthorizedOperation`, `ThrottlingException`).
    - Standardized paginator method:
@@ -143,32 +143,32 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
 
 ---
 
-### Phase 3: AI-SPM Rule Implementation
+### Phase 3: SIFTSEC Rule Implementation
 
-**Goal:** Implement all 16 detection rules across the 5 core AI services based on `docs/ai-spm-rules-catalog.md`.
+**Goal:** Implement all 16 detection rules across the 5 core AI services based on `docs/siftsec-rules-catalog.md`.
 
 #### Tasks & Deliverables:
 1. **S3 Rules:**
-   - `AI-SPM-S3-001`: Unencrypted AI Model Weights Storage (Require KMS CMK).
-   - `AI-SPM-S3-002`: Public Access Allowed on AI Datasets/Artifacts.
-   - `AI-SPM-S3-003`: Missing Object Versioning on Training Datasets.
+   - `SIFTSEC-S3-001`: Unencrypted AI Model Weights Storage (Require KMS CMK).
+   - `SIFTSEC-S3-002`: Public Access Allowed on AI Datasets/Artifacts.
+   - `SIFTSEC-S3-003`: Missing Object Versioning on Training Datasets.
 2. **SageMaker Rules:**
-   - `AI-SPM-SAGEMAKER-001`: Notebook Direct Internet Access Enabled.
-   - `AI-SPM-SAGEMAKER-002`: Notebook Missing Custom VPC Attachment.
-   - `AI-SPM-SAGEMAKER-003`: Root Privileges Enabled on Notebook Instance.
-   - `AI-SPM-SAGEMAKER-004`: Endpoint Unencrypted Storage Volume.
-   - `AI-SPM-SAGEMAKER-005`: Training Job Missing Network Isolation.
+   - `SIFTSEC-SAGEMAKER-001`: Notebook Direct Internet Access Enabled.
+   - `SIFTSEC-SAGEMAKER-002`: Notebook Missing Custom VPC Attachment.
+   - `SIFTSEC-SAGEMAKER-003`: Root Privileges Enabled on Notebook Instance.
+   - `SIFTSEC-SAGEMAKER-004`: Endpoint Unencrypted Storage Volume.
+   - `SIFTSEC-SAGEMAKER-005`: Training Job Missing Network Isolation.
 3. **Bedrock Rules:**
-   - `AI-SPM-BEDROCK-001`: Model Invocation Logging Disabled.
-   - `AI-SPM-BEDROCK-002`: Knowledge Base Data Source Missing KMS CMK.
-   - `AI-SPM-BEDROCK-003`: Bedrock Agent Missing Guardrails / Filter Controls.
+   - `SIFTSEC-BEDROCK-001`: Model Invocation Logging Disabled.
+   - `SIFTSEC-BEDROCK-002`: Knowledge Base Data Source Missing KMS CMK.
+   - `SIFTSEC-BEDROCK-003`: Bedrock Agent Missing Guardrails / Filter Controls.
 4. **ECR Rules:**
-   - `AI-SPM-ECR-001`: AI Image Vulnerability Scan on Push Disabled.
-   - `AI-SPM-ECR-002`: AI Image Tag Immutability Disabled.
+   - `SIFTSEC-ECR-001`: AI Image Vulnerability Scan on Push Disabled.
+   - `SIFTSEC-ECR-002`: AI Image Tag Immutability Disabled.
 5. **OpenSearch / Vector DB Rules:**
-   - `AI-SPM-OPENSEARCH-001`: Vector DB Domain Exposed to Public Internet.
-   - `AI-SPM-OPENSEARCH-002`: Fine-Grained Access Control (FGAC) Disabled.
-   - `AI-SPM-OPENSEARCH-003`: Node-to-Node Encryption Disabled.
+   - `SIFTSEC-OPENSEARCH-001`: Vector DB Domain Exposed to Public Internet.
+   - `SIFTSEC-OPENSEARCH-002`: Fine-Grained Access Control (FGAC) Disabled.
+   - `SIFTSEC-OPENSEARCH-003`: Node-to-Node Encryption Disabled.
 
 ---
 
@@ -177,8 +177,8 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
 **Goal:** Build an ergonomic, professional CLI with `typer` and `rich`, providing multi-format reports (Console, JSON, Markdown, SARIF).
 
 #### Tasks & Deliverables:
-1. **Typer CLI Interface (`ai_spm/cli.py`):**
-   - Command: `ai-spm scan [OPTIONS]`
+1. **Typer CLI Interface (`siftsec/cli.py`):**
+   - Command: `siftsec scan [OPTIONS]`
      - `--regions`: Comma-separated AWS regions (e.g., `us-east-1,us-west-2`) or `all`.
      - `--services`: Filter specific services (`s3`, `sagemaker`, `bedrock`, `ecr`, `opensearch`).
      - `--severity`: Minimum severity to report (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
@@ -186,8 +186,8 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
      - `--format`: `terminal`, `json`, `markdown`, `sarif`.
      - `--fail-on`: Exit with code 1 if findings meet or exceed this severity (for CI/CD gating).
      - `--profile`: AWS CLI named profile.
-   - Command: `ai-spm list-rules`: Displays the full rule catalog with severities and threat model mappings.
-2. **Reporters (`ai_spm/reporters/`):**
+   - Command: `siftsec list-rules`: Displays the full rule catalog with severities and threat model mappings.
+2. **Reporters (`siftsec/reporters/`):**
    - `ConsoleReporter`: Rich tables with color-coded severities, finding summaries, and progress bars.
    - `JSONReporter`: Complete structured JSON export with timestamps, resource metadata, and findings.
    - `MarkdownReporter`: Executive security summary and detailed remediation tables suitable for GitHub PR comments.
@@ -205,14 +205,14 @@ This document expands the high-level roadmap into a complete, phase-by-phase imp
    - Integration tests with `moto` mocking S3, SageMaker, ECR, and OpenSearch API responses.
    - CLI end-to-end tests using Typer's `CliRunner`.
 2. **GitHub Action Integration:**
-   - Pre-built reusable GitHub Action / Workflow (`.github/workflows/ai-spm.yml`).
-   - Runs `ai-spm scan --fail-on HIGH --format sarif --output ai-spm-results.sarif`.
+   - Pre-built reusable GitHub Action / Workflow (`.github/workflows/siftsec.yml`).
+   - Runs `siftsec scan --fail-on HIGH --format sarif --output siftsec-results.sarif`.
    - Uploads SARIF results to `github/codeql-action/upload-sarif`.
 
 ---
 
 ## 3. Extensibility & Future Milestones
 
-* **Phase 6 (Multi-Cloud):** Expand AI-SPM collectors to Google Cloud Vertex AI (Model Registry, Notebooks, Vertex Search) and Azure OpenAI / Azure AI Foundry.
+* **Phase 6 (Multi-Cloud):** Expand SIFTSEC collectors to Google Cloud Vertex AI (Model Registry, Notebooks, Vertex Search) and Azure OpenAI / Azure AI Foundry.
 * **Phase 7 (Local / Shadow LLM Discovery):** Network port discovery for unauthenticated local inference servers (Ollama, vLLM, LocalAI, LM Studio) running in EC2/ECS/EKS.
 * **Phase 8 (Automated Remediation / PR Generation):** One-click Terraform/CloudFormation fix generation to remediate findings automatically.

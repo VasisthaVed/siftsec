@@ -1,12 +1,12 @@
-# AI-SPM Scanner: AWS IAM Permissions Policy (Least Privilege)
+# SIFTSEC Scanner: AWS IAM Permissions Policy (Least Privilege)
 
-This document provides the minimal, read-only AWS IAM policy required to execute the **AI-SPM Scanner**. 
+This document provides the minimal, read-only AWS IAM policy required to execute the **SIFTSEC Scanner**. 
 
 The policy follows the principle of least privilege, requiring only `List`, `Describe`, and `Get` actions on AI/ML services and their dependent storage and networking components. **No write, delete, or modify permissions are required.**
 
 ---
 
-## IAM Policy JSON (`ai-spm-readonly-policy.json`)
+## IAM Policy JSON (`siftsec-readonly-policy.json`)
 
 ```json
 {
@@ -127,7 +127,7 @@ The policy follows the principle of least privilege, requiring only `List`, `Des
 # 1. Create the policy
 aws iam create-policy \
   --policy-name AISPMReadOnlyPolicy \
-  --policy-document file://docs/ai-spm-readonly-policy.json
+  --policy-document file://docs/siftsec-readonly-policy.json
 
 # 2. Attach to your CI/CD service role or auditor user
 aws iam attach-role-policy \
@@ -137,14 +137,14 @@ aws iam attach-role-policy \
 
 ### Option 2: Terraform Module Snippet
 ```hcl
-resource "aws_iam_policy" "ai_spm_readonly" {
+resource "aws_iam_policy" "siftsec_readonly" {
   name        = "AISPMReadOnlyPolicy"
-  description = "Minimal read-only permissions for AI-SPM Scanner"
-  policy      = file("${path.module}/docs/ai-spm-readonly-policy.json")
+  description = "Minimal read-only permissions for SIFTSEC Scanner"
+  policy      = file("${path.module}/docs/siftsec-readonly-policy.json")
 }
 
-resource "aws_iam_role_policy_attachment" "ai_spm_attach" {
-  role       = aws_iam_role.ai_spm_scanner.name
-  policy_arn = aws_iam_policy.ai_spm_readonly.arn
+resource "aws_iam_role_policy_attachment" "siftsec_attach" {
+  role       = aws_iam_role.siftsec_scanner.name
+  policy_arn = aws_iam_policy.siftsec_readonly.arn
 }
 ```

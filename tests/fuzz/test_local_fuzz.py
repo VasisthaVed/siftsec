@@ -9,11 +9,11 @@ from hypothesis import given
 from hypothesis import settings as hyp_settings
 from hypothesis import strategies as st
 
-from ai_spm.collectors.local.mcp import LocalMcpCollector
-from ai_spm.config import AISPMConfig
-from ai_spm.scanners.pickle_scanner import scan_pickle_stream, validate_safetensors_header
+from siftsec.collectors.local.mcp import LocalMcpCollector
+from siftsec.config import SiftsecConfig
+from siftsec.scanners.pickle_scanner import scan_pickle_stream, validate_safetensors_header
 
-_CFG = AISPMConfig()
+_CFG = SiftsecConfig()
 
 
 @hyp_settings(max_examples=200)

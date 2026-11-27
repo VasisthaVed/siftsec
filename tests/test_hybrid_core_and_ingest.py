@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from ai_spm._core_loader import HAS_RUST, parse_json_bounded
-from ai_spm.engine.models import Severity
-from ai_spm.ingest import ingest_json_bytes, ingest_sarif_bytes
+from siftsec._core_loader import HAS_RUST, parse_json_bounded
+from siftsec.engine.models import Severity
+from siftsec.ingest import ingest_json_bytes, ingest_sarif_bytes
 
 
 @pytest.mark.parametrize(

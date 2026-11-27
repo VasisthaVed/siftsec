@@ -34,29 +34,29 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rust/tensorguard-core/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/tensorguard-core/Cargo.lock') }}
+            rust/siftsec-core/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/siftsec-core/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Run cargo test --release
-        working-directory: rust/tensorguard-core
+        working-directory: rust/siftsec-core
         run: cargo test --release
 
       - name: Run cargo clippy (warnings = errors)
-        working-directory: rust/tensorguard-core
+        working-directory: rust/siftsec-core
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Check licenses & advisories (cargo-deny · ADR-035)
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          manifest-path: rust/tensorguard-core/Cargo.toml
+          manifest-path: rust/siftsec-core/Cargo.toml
 
       # cargo-geiger: verify zero unsafe in our own crate outside pyo3 boundary (ADR-036)
       - name: Install cargo-geiger
         run: cargo install cargo-geiger --locked
 
       - name: Check own-code unsafe (cargo-geiger · ADR-036)
-        run: cargo geiger --output-format Json --manifest-path rust/tensorguard-core/Cargo.toml > geiger.json
+        run: cargo geiger --output-format Json --manifest-path rust/siftsec-core/Cargo.toml > geiger.json
 
       - name: Upload cargo-geiger report
         uses: actions/upload-artifact@v4
