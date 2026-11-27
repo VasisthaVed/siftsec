@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "max_hops": 8,
+  "nodes": [
+    {
+      "id": "gateway://api/public-chat",
+      "kind": "boundary",
+      "boundary": true,
+      "sensitive": false,
+      "display_name": "public-chat"
+    },
+    {
+      "id": "model://router/model-a",
+      "kind": "model",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "model-a"
+    },
+    {
+      "id": "arn:aws:iam::123456789012:role/model-a-write-role",
+      "kind": "identity",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "model-a-write-role"
+    },
+    {
+      "id": "model://worker/model-b",
+      "kind": "model",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "model-b"
+    },
+    {
+      "id": "arn:aws:s3:::prod-training-corpus",
+      "kind": "data_store",
+      "boundary": false,
+      "sensitive": true,
+      "display_name": "prod-training-corpus"
+    }
+  ],
+  "edges": [
+    {
+      "source": "gateway://api/public-chat",
+      "target": "model://router/model-a",
+      "kind": "skill_uses_agent",
+      "confidence": 1.0,
+      "provenance": "agent_router",
+      "actions": []
+    },
+    {
+      "source": "model://router/model-a",
+      "target": "arn:aws:iam::123456789012:role/model-a-write-role",
+      "kind": "uses_role",
+      "confidence": 1.0,
+      "provenance": "aws_iam_get_role_policy",
+      "actions": ["s3:*"]
+    },
+    {
+      "source": "model://router/model-a",
+      "target": "model://worker/model-b",
+      "kind": "model_handoff",
+      "confidence": 1.0,
+      "provenance": "hydrogen_scheduler",
+      "actions": []
+    },
+    {
+      "source": "model://worker/model-b",
+      "target": "arn:aws:s3:::prod-training-corpus",
+      "kind": "reads_bucket",
+      "confidence": 1.0,
+      "provenance": "aws_iam_get_role_policy",
+      "actions": ["s3:GetObject"]
+    }
+  ]
+}

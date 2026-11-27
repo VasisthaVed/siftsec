@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "max_hops": 8,
+  "nodes": [
+    {
+      "id": "arn:aws:sagemaker:us-east-1:123456789012:notebook-instance/public-nb-isolated",
+      "kind": "boundary",
+      "boundary": true,
+      "sensitive": false,
+      "display_name": "public-nb-isolated"
+    },
+    {
+      "id": "arn:aws:iam::123456789012:role/no-s3-role",
+      "kind": "identity",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "no-s3-role"
+    },
+    {
+      "id": "arn:aws:sagemaker:us-east-1:123456789012:notebook-instance/private-vpc-nb",
+      "kind": "boundary",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "private-vpc-nb"
+    },
+    {
+      "id": "arn:aws:s3:::prod-model-weights",
+      "kind": "data_store",
+      "boundary": false,
+      "sensitive": true,
+      "display_name": "prod-model-weights"
+    }
+  ],
+  "edges": [
+    {
+      "source": "arn:aws:sagemaker:us-east-1:123456789012:notebook-instance/public-nb-isolated",
+      "target": "arn:aws:iam::123456789012:role/no-s3-role",
+      "kind": "uses_role",
+      "confidence": 1.0,
+      "provenance": "aws_sagemaker_describe_notebook_instance",
+      "actions": []
+    },
+    {
+      "source": "arn:aws:sagemaker:us-east-1:123456789012:notebook-instance/private-vpc-nb",
+      "target": "arn:aws:s3:::prod-model-weights",
+      "kind": "reads_bucket",
+      "confidence": 1.0,
+      "provenance": "aws_iam_get_role_policy",
+      "actions": ["s3:*"]
+    }
+  ]
+}

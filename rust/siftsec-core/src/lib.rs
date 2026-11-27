@@ -2,6 +2,7 @@
 
 pub mod dedup;
 pub mod error;
+pub mod graph;
 pub mod json_stream;
 
 use pyo3::prelude::*;
@@ -99,10 +100,18 @@ pub fn index_findings(py: Python<'_>, findings: Vec<Py<PyAny>>) -> PyResult<Vec<
 }
 
 #[allow(unsafe_code)]
+#[pyfunction]
+pub fn build_graph_and_score(py: Python<'_>, payload_json: String) -> PyResult<String> {
+    let out = py.detach(|| graph::evaluate_payload_json(&payload_json))?;
+    Ok(out)
+}
+
+#[allow(unsafe_code)]
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_json_bounded, m)?)?;
     m.add_function(wrap_pyfunction!(index_findings, m)?)?;
+    m.add_function(wrap_pyfunction!(build_graph_and_score, m)?)?;
     Ok(())
 }
 

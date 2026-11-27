@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "max_hops": 8,
+  "nodes": [
+    {
+      "id": "registry://clawhub/untrusted-registry",
+      "kind": "boundary",
+      "boundary": true,
+      "sensitive": false,
+      "display_name": "untrusted-registry"
+    },
+    {
+      "id": "skill://clawhub/helper-skill@1.0.0",
+      "kind": "skill",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "helper-skill"
+    },
+    {
+      "id": "arn:aws:bedrock:us-east-1:123456789012:agent/prod-agent",
+      "kind": "ai_asset",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "prod-agent"
+    },
+    {
+      "id": "arn:aws:iam::123456789012:role/agent-passrole-cred",
+      "kind": "identity",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "agent-passrole-cred"
+    },
+    {
+      "id": "arn:aws:iam::123456789012:role/prod-admin-role",
+      "kind": "identity",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "prod-admin-role"
+    },
+    {
+      "id": "arn:aws:s3:::prod-sensitive-bucket",
+      "kind": "data_store",
+      "boundary": false,
+      "sensitive": true,
+      "display_name": "prod-sensitive-bucket"
+    }
+  ],
+  "edges": [
+    {
+      "source": "registry://clawhub/untrusted-registry",
+      "target": "skill://clawhub/helper-skill@1.0.0",
+      "kind": "skill_uses_agent",
+      "confidence": 1.0,
+      "provenance": "mcp_config",
+      "actions": []
+    },
+    {
+      "source": "skill://clawhub/helper-skill@1.0.0",
+      "target": "arn:aws:bedrock:us-east-1:123456789012:agent/prod-agent",
+      "kind": "skill_uses_agent",
+      "confidence": 1.0,
+      "provenance": "mcp_config",
+      "actions": []
+    },
+    {
+      "source": "arn:aws:bedrock:us-east-1:123456789012:agent/prod-agent",
+      "target": "arn:aws:iam::123456789012:role/agent-passrole-cred",
+      "kind": "uses_role",
+      "confidence": 1.0,
+      "provenance": "aws_bedrock_get_agent",
+      "actions": ["iam:PassRole"]
+    },
+    {
+      "source": "arn:aws:iam::123456789012:role/agent-passrole-cred",
+      "target": "arn:aws:iam::123456789012:role/prod-admin-role",
+      "kind": "uses_role",
+      "confidence": 1.0,
+      "provenance": "aws_iam_get_role_policy",
+      "actions": ["iam:PassRole"]
+    },
+    {
+      "source": "arn:aws:iam::123456789012:role/prod-admin-role",
+      "target": "arn:aws:s3:::prod-sensitive-bucket",
+      "kind": "reads_bucket",
+      "confidence": 1.0,
+      "provenance": "aws_iam_get_role_policy",
+      "actions": ["s3:*"]
+    }
+  ]
+}
