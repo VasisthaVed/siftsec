@@ -53,10 +53,11 @@ jobs:
 
       # cargo-geiger: verify zero unsafe in our own crate outside pyo3 boundary (ADR-036)
       - name: Install cargo-geiger
-        run: cargo install cargo-geiger --locked
+        run: cargo install cargo-geiger --version 0.13.0 --locked
 
       - name: Check own-code unsafe (cargo-geiger · ADR-036)
-        run: cargo geiger --output-format Json --manifest-path rust/siftsec-core/Cargo.toml > geiger.json
+        working-directory: rust/siftsec-core
+        run: cargo geiger --output-format Json > ../../geiger.json
 
       - name: Upload cargo-geiger report
         uses: actions/upload-artifact@v4
