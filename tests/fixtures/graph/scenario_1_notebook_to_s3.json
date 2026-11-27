@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "max_hops": 8,
+  "nodes": [
+    {
+      "id": "arn:aws:sagemaker:us-east-1:123456789012:notebook-instance/public-ml-nb",
+      "kind": "boundary",
+      "boundary": true,
+      "sensitive": false,
+      "display_name": "public-ml-nb"
+    },
+    {
+      "id": "arn:aws:iam::123456789012:role/sagemaker-write-role",
+      "kind": "identity",
+      "boundary": false,
+      "sensitive": false,
+      "display_name": "sagemaker-write-role"
+    },
+    {
+      "id": "arn:aws:s3:::prod-model-weights",
+      "kind": "data_store",
+      "boundary": false,
+      "sensitive": true,
+      "display_name": "prod-model-weights"
+    }
+  ],
+  "edges": [
+    {
+      "source": "arn:aws:sagemaker:us-east-1:123456789012:notebook-instance/public-ml-nb",
+      "target": "arn:aws:iam::123456789012:role/sagemaker-write-role",
+      "kind": "uses_role",
+      "confidence": 1.0,
+      "provenance": "aws_sagemaker_describe_notebook_instance",
+      "actions": []
+    },
+    {
+      "source": "arn:aws:iam::123456789012:role/sagemaker-write-role",
+      "target": "arn:aws:s3:::prod-model-weights",
+      "kind": "reads_bucket",
+      "confidence": 1.0,
+      "provenance": "aws_iam_get_role_policy",
+      "actions": ["s3:*"]
+    }
+  ]
+}
