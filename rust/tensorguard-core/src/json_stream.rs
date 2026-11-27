@@ -66,6 +66,7 @@ pub fn parse_bounded(
 
 #[cfg(kani)]
 mod kani_proofs {
+    // TODO(10.2): Kani proof on depth pre-pass
     use super::*;
 
     #[kani::proof]

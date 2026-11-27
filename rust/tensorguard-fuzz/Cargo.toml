@@ -17,3 +17,17 @@ path = "fuzz_targets/json_stream.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "dedup"
+path = "fuzz_targets/dedup.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "graph"
+path = "fuzz_targets/graph.rs"
+test = false
+doc = false
+bench = false

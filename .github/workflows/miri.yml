@@ -1,0 +1,26 @@
+name: Miri (UB check)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "rust/**"
+      - ".github/workflows/miri.yml"
+  pull_request:
+    paths:
+      - "rust/**"
+
+jobs:
+  miri:
+    name: cargo miri test
+    runs-on: ubuntu-latest
+    # TODO(10.2): enable when graph/ lands
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - name: Run cargo miri test
+        working-directory: rust/tensorguard-core
+        run: cargo miri test
