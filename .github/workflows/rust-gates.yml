@@ -8,9 +8,7 @@ on:
       - "deny.toml"
       - ".github/workflows/rust-gates.yml"
   pull_request:
-    paths:
-      - "rust/**"
-      - "deny.toml"
+    branches: ["main"]
   workflow_dispatch:
 
 concurrency:
@@ -18,8 +16,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: detect-rust-changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if Rust files or workflow changed
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" | grep -qE '^(rust/|deny\.toml$|\.github/workflows/rust-gates\.yml$)'; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+          fi
+
   rust-test-and-audit:
     name: cargo test + deny (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -78,3 +101,21 @@ jobs:
         with:
           name: cargo-geiger-report
           path: geiger.json
+
+  rust-gate-aggregate:
+    name: rust-gate-aggregate
+    runs-on: ubuntu-latest
+    needs: [rust-test-and-audit]
+    if: always()
+    steps:
+      - name: Fail if any Rust gate failed
+        run: |
+          echo '${{ toJSON(needs) }}' | python -c "
+          import json, sys
+          needs = json.load(sys.stdin)
+          failed = [k for k, v in needs.items() if v['result'] == 'failure']
+          if failed:
+              print('Failed Rust jobs:', failed)
+              sys.exit(1)
+          print('All Rust gates passed or skipped')
+          "
