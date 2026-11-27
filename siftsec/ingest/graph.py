@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Python wrapper for Rust reachability graph engine (Phase 10.3, ADR-032)."""
 
 import importlib

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Versioned JSON report exporter (Phase 4.3)."""
 
 from siftsec.engine.models import ScanSummary

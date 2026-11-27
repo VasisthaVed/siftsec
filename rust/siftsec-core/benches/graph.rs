@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use _core::graph::{evaluate_payload_json, Edge, EdgeKind, GraphPayload, Node, NodeKind};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Redacted diagnostics bundle writer for bug reports (Phase 8.5)."""
 
 import json

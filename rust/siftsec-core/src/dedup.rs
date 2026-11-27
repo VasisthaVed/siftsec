@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

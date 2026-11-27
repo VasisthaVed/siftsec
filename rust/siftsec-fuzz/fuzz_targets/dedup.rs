@@ -1,4 +1,5 @@
 #![no_main]
+// SPDX-License-Identifier: Apache-2.0
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|_data: &[u8]| {

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Secret redaction utilities applied at Finding construction and log output."""
 
 import re

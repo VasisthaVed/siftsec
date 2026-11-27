@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Phase 10.3 reachability graph exit-gate tests (Scenarios #1-#5)."""
 
 import json

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Integration tests for SageMaker, Bedrock, ECR, OpenSearch, IAM, EC2, and AwsOrchestrator."""
 
 import json

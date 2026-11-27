@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use crate::error::ScanError;
 
 pub const DEFAULT_MAX_JSON_BYTES: usize = 64 * 1024 * 1024;

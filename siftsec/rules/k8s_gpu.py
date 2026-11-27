@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Kubernetes GPU runtime security rules (Phase 5.2)."""
 
 import re

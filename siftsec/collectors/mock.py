@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 from siftsec.collectors.base import BaseCollector
 from siftsec.engine.models import CloudProvider, CloudResource
 

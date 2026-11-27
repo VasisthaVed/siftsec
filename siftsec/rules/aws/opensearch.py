@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon OpenSearch & Serverless Vector DB rules (Phase 3.6)."""
 
 from siftsec.engine.attrs import OpenSearchDomainAttrs, OpenSearchServerlessAttrs

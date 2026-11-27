@@ -1,4 +1,5 @@
 #![no_main]
+// SPDX-License-Identifier: Apache-2.0
 use libfuzzer_sys::fuzz_target;
 use _core::json_stream::{parse_bounded, DEFAULT_MAX_JSON_BYTES};
 

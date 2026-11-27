@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use _core::dedup::{deduplicate, NormalizedFinding};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::collections::BTreeMap;

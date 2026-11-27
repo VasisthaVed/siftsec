@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Bounded pure-Python JSON parser matching rust/siftsec-core/src/json_stream.rs."""
 
 import json

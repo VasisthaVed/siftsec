@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Static MCP configuration auditor (ADR-005). Never launches or connects to servers."""
 
 import base64

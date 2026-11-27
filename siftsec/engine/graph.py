@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Attack-path correlation engine over collected AI/cloud resources (Phase 9.1)."""
 
 from dataclasses import dataclass, field

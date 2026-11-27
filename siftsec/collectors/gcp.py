@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Google Cloud Platform (Vertex AI & GCS) read-only SIFTSEC collector (Phase 6.2)."""
 
 import re

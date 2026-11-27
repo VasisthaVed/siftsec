@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Scan diff and drift analysis between two JSONReporter snapshots (Phase 9.2)."""
 
 import json

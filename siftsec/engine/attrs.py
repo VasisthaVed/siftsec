@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Typed resource attribute models for local and cloud AI assets."""
 
 from typing import Literal

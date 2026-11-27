@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Detection rules for local model files and MCP server configurations (Phase 1)."""
 
 import shlex

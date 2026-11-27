@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Finding suppressions (with mandatory expiry) and fingerprint baselines (Phase 0.6 / 4.6)."""
 
 import json

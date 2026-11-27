@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for JSON, Markdown, SARIF reporters, atomic_write_secure, and CLI doctor."""
 
 import json

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cross-tool finding deduplication wrapper (Phase 10.2)."""
 
 import hashlib

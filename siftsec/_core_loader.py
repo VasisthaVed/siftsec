@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Runtime loader for compiled siftsec._core with pure-Python fallback (ADR-030)."""
 
 import importlib

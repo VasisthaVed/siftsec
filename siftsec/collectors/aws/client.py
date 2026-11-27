@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Thread-safe Boto3 session and client factory (Phase 2.1)."""
 
 import threading

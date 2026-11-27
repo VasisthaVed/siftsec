@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Phase 10.3 determinism golden test (Exit Gate #6, ADR-031)."""
 
 import json

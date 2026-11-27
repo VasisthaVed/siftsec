@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """AI Supply Chain security rules (Phase 7.1): provenance, license, and model allowlists."""
 
 import re

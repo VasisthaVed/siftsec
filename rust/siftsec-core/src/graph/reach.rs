@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use crate::graph::{EdgeKind, NodeKind, SecurityGraph};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;

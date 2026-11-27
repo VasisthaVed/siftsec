@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Deterministic, explainable AI workload classification (Phase 2.3)."""
 
 import re

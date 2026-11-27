@@ -9,7 +9,8 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 [![Rust 1.88+](https://img.shields.io/badge/rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
 
-> **v0.1 — in development.** Ingest (10.1), dedup (10.2), and reachability
+> **v0.1 — in development. Formerly `tensorguard` (see
+> [MIGRATION.md](MIGRATION.md)).** Ingest (10.1), dedup (10.2), and reachability
 > graph (10.3) are shipped and tested. Prioritization, SARIF output, and the
 > public benchmark land before v1.0. This README states what works today and
 > what does not.
@@ -42,7 +43,8 @@ reach.
 ## Quick start
 
 ```bash
-pip install siftsec
+# Until the v0.1 alpha is on PyPI, install from source:
+pip install git+https://github.com/VasisthaVed/siftsec.git
 
 # Combine findings from three scanners
 siftsec ingest \
@@ -50,13 +52,14 @@ siftsec ingest \
   --sarif trivy.sarif \
   --sarif agent-bom.sarif \
   --out merged.sarif
-
-# Rank by what an attacker can reach
-siftsec reach \
-  --sarif merged.sarif \
-  --cloud-snapshot cloud.json \
-  --out prioritized.sarif
 ```
+
+> **PyPI release:** `pip install siftsec` lands with v0.1.0a1.
+> Track [#1](https://github.com/VasisthaVed/siftsec/issues/1) for the
+> publish date.
+>
+> `siftsec reach` ships in v0.2 (Phase 10.4). The ingest layer is
+> available today.
 
 Requires Python 3.12+. Prebuilt wheels for linux-x86_64, linux-aarch64,
 macos-arm64, macos-x86_64, windows-x64 (`abi3-py312` — one wheel per platform
@@ -287,4 +290,4 @@ Good first issues are tagged [`good first issue`](https://github.com/VasisthaVed
 
 ## License
 
-Apache-2.0 with DCO. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Formerly `tensorguard`; see [MIGRATION.md](MIGRATION.md).
+Apache-2.0 with DCO. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

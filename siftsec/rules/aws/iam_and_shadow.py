@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """IAM AI execution role rules and EC2 Shadow AI port exposure rule (Phase 3.7-3.8)."""
 
 from siftsec.config import settings

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Property-based fuzzing tests for hostile binary and JSON inputs (Phase 1.8)."""
 
 import io

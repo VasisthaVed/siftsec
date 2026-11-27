@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Severity-weighted CSPM posture scoring and CI exit-code evaluation."""
 
 from collections.abc import Mapping, Sequence

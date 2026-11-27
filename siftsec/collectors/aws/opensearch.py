@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon OpenSearch Service & OpenSearch Serverless collector (Phase 2.8)."""
 
 import json

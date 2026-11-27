@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use _core::json_stream::{parse_bounded, DEFAULT_MAX_JSON_BYTES};
 use std::time::Instant;
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Local model artifact collector using iterative, symlink-safe traversal."""
 
 import hashlib

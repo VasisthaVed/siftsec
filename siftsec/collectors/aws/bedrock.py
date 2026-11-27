@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon Bedrock & Bedrock Agent collector (Phase 2.6)."""
 
 from typing import Any, ClassVar, Literal

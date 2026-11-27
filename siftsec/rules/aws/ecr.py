@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon ECR security rules for AI/ML container repositories (Phase 3.5)."""
 
 from siftsec.engine.attrs import ECRRepositoryAttrs

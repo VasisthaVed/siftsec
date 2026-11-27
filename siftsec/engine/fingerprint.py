@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Deterministic finding fingerprint generation (D-12)."""
 
 import hashlib

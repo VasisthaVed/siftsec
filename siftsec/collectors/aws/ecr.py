@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon ECR collector for AI/ML container repositories (Phase 2.7)."""
 
 from typing import Any, ClassVar, Literal

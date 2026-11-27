@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Two-phase AWS IAM collector inspecting only roles referenced by AI resources (Phase 2.9)."""
 
 import json

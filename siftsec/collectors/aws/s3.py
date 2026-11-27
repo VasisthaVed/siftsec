@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon S3 collector for AI model weights and training datasets (Phase 2.4)."""
 
 from collections import Counter

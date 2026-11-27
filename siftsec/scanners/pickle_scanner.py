@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Static pickle opcode and model container scanner (ADR-004).
 
 Never invokes pickle.loads() or torch.load(); streams opcodes with pickletools.genops().

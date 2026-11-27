@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 from abc import ABC, abstractmethod
 from importlib.metadata import entry_points
 from typing import Protocol, runtime_checkable

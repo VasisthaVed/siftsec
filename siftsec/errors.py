@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Custom exception hierarchy for Siftsec (SIFTSEC)."""
 
 

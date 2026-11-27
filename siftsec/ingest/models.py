@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Normalized finding and reachability graph schemas (Phase 10.1–10.3, schema=1)."""
 
 from typing import Literal

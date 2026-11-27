@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon SageMaker security rules (Phase 3.3)."""
 
 from siftsec.engine.attrs import (

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Partition-aware AWS ARN construction and parsing helpers."""
 
 

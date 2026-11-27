@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Abstract BaseRule contract and Finding builder helpers."""
 
 from abc import ABC, abstractmethod

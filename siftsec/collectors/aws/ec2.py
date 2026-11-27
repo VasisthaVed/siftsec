@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """EC2 Security Group collector for Shadow AI port exposure (Phase 2.10)."""
 
 from typing import ClassVar, Literal

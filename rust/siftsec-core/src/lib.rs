@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+// SPDX-License-Identifier: Apache-2.0
 
 pub mod dedup;
 pub mod error;

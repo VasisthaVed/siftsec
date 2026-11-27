@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Multi-region AWS orchestrator with bounded concurrency and post-pass linking (Phase 2.11)."""
 
 import logging

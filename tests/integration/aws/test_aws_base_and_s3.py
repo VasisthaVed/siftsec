@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Integration tests for AwsClientFactory, AWSBaseCollector, and S3Collector via moto + Stubber."""
 
 import boto3

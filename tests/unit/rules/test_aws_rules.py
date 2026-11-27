@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Unit tests for Phase 3 AWS rules, resource_kinds dispatch, and remediation escaping."""
 
 import shlex

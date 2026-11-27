@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """AI Bill of Materials (AIBOM) reporter for CycloneDX 1.7 ML-BOM and SPDX 3.0 AI profile."""
 
 import json

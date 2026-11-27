@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon Bedrock security rules (Phase 3.4)."""
 
 from siftsec.engine.attrs import (

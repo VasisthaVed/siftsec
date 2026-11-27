@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Rule evaluation runner with gap handling and per-rule exception barriers."""
 
 import logging

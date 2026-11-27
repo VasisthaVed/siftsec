@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Bounded SARIF 2.1.0 ingest adapter for ModelAudit, Trivy, Semgrep, agent-bom, MCPiranha."""
 
 from typing import Any

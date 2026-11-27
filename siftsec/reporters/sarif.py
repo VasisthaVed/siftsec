@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """OASIS SARIF v2.1.0 reporter for GitHub Code Scanning (Phase 4.4)."""
 
 import json

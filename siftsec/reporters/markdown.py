@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """GitHub-Flavored Markdown PR reporter with untrusted-string escaping (Phase 4.5)."""
 
 from siftsec.engine.models import ScanSummary, Status

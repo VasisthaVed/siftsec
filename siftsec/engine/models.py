@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Core Pydantic v2 domain models for Siftsec (D-04, D-05, D-08, D-12)."""
 
 from datetime import UTC, datetime

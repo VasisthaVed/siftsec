@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Base AWS collector with pagination, error classification, and gap barriers (Phase 2.2)."""
 
 import json

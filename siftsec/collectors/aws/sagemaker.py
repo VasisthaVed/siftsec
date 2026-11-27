@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amazon SageMaker collector (Phase 2.5)."""
 
 import re

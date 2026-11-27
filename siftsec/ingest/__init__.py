@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """External scanner ingest adapters and deduplication (Phase 10.1–10.2)."""
 
 from siftsec.ingest.dedup import index_findings

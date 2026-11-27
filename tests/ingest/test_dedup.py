@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Phase 10.2 cross-tool deduplication tests (Exit Gate #1)."""
 
 from pathlib import Path
