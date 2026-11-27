@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 petgraph = "0.8"
-pyo3 = { version = "0.29", features = ["abi3-py312"] }
+pyo3 = { version = "0.30", features = ["abi3-py312"] }
 rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = [] } # Never enable unbounded_depth (ADR-023)
